@@ -1,0 +1,6 @@
+{
+  "name": "Memoji - The Memory Game",
+  "description": "An engaging emoji-based memory matching puzzle game with 500 levels and progressive difficulty.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

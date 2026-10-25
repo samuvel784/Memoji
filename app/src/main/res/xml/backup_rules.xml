@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 11 and lower: back up only the player's progress/settings (DataStore files). -->
+<full-backup-content>
+    <include domain="file" path="datastore/memory_match_prefs.preferences_pb"/>
+    <include domain="file" path="datastore/theme_prefs.preferences_pb"/>
+</full-backup-content>

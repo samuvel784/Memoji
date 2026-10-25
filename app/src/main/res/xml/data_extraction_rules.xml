@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 12+: progress follows the player to a new phone (cloud backup + device transfer). -->
+<data-extraction-rules>
+    <cloud-backup>
+        <include domain="file" path="datastore/memory_match_prefs.preferences_pb"/>
+        <include domain="file" path="datastore/theme_prefs.preferences_pb"/>
+    </cloud-backup>
+    <device-transfer>
+        <include domain="file" path="datastore/memory_match_prefs.preferences_pb"/>
+        <include domain="file" path="datastore/theme_prefs.preferences_pb"/>
+    </device-transfer>
+</data-extraction-rules>

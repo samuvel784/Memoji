@@ -1,0 +1,26 @@
+# Gradle
+.gradle/
+.kotlin/
+build/
+/app/build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# Android / IDE
+local.properties
+.idea/
+*.iml
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Tooling
+.aistudio/
+
+# Signing (upload keys must never be committed)
+*.jks
+my-upload-key.jks
+.env
+
+# OS
+.DS_Store
+Thumbs.db
