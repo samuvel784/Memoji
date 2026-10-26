@@ -44,12 +44,17 @@ object SoundManager {
         Victory("victory_v1"),
         Defeat("defeat_v1"),
         Pause("pause_v1"),
+        Star("star_v1"),
+        Tick("tick_v1"),
+        Whoosh("whoosh_v1"),
+        Boss("boss_v1"),
+        Chest("chest_v1"),
     }
 
     private const val SAMPLE_RATE = 44_100
     private const val MAX_STREAMS = 4
     private const val MIN_REPEAT_MS = 45L
-    private const val CACHE_DIR = "memoji_sfx_v1"
+    private const val CACHE_DIR = "memoji_sfx_v2"
 
     private val executor = Executors.newSingleThreadExecutor { runnable ->
         Thread(runnable, "MemojiAudio").apply { isDaemon = true }
@@ -67,6 +72,35 @@ object SoundManager {
     /** Bumped by [release]; a background init that finishes late must not resurrect a dead pool. */
     @Volatile
     private var generation = 0
+
+    @Volatile
+    private var masterVolume = AudioMix.DEFAULT_MASTER
+
+    @Volatile
+    private var effectsVolume = AudioMix.DEFAULT_EFFECTS
+
+    /** Effects are muted while music focus is lost or the app is in the background. */
+    @Volatile
+    private var audioFocusGranted = true
+
+    @Volatile
+    private var appForeground = true
+
+    /** Applies the master/effects sliders. Safe to call from the UI on every preference change. */
+    fun setVolumes(master: Float, effects: Float) {
+        masterVolume = master.coerceIn(0f, 1f)
+        effectsVolume = effects.coerceIn(0f, 1f)
+    }
+
+    /** Music requests audio focus; losing it must silence effects too. */
+    fun setAudioFocus(granted: Boolean) {
+        audioFocusGranted = granted
+    }
+
+    /** No cue may play while the app is in the background. */
+    fun setAppForeground(foreground: Boolean) {
+        appForeground = foreground
+    }
 
     /**
      * Prepares the sound pool on a background thread. Safe to call repeatedly; does nothing after
@@ -120,8 +154,13 @@ object SoundManager {
         }
     }
 
-    private fun play(sfx: Sfx, enabled: Boolean, volume: Float = 1f) {
-        if (!enabled) return
+    private fun play(sfx: Sfx, enabled: Boolean, volume: Float = 1f, rate: Float = 1f) {
+        if (!enabled || !audioFocusGranted || !appForeground) return
+        if (!AudioMix.isAudible(masterVolume)) return
+
+        val gain = AudioMix.gain(masterVolume, effectsVolume) * volume.coerceIn(0f, 1f)
+        if (gain <= AudioMix.SILENCE_THRESHOLD) return
+
         val now = System.currentTimeMillis()
         val previous = lastPlayedAt[sfx] ?: 0L
         if (now - previous < MIN_REPEAT_MS) return
@@ -130,7 +169,7 @@ object SoundManager {
         val soundPool = pool ?: return
         val id = loadedIds[sfx] ?: return
         try {
-            soundPool.play(id, volume.coerceIn(0f, 1f), volume.coerceIn(0f, 1f), 1, 0, 1f)
+            soundPool.play(id, gain, gain, 1, 0, rate.coerceIn(0.5f, 2f))
         } catch (_: Throwable) {
             // Never let audio break gameplay.
         }
@@ -140,7 +179,14 @@ object SoundManager {
 
     fun playTap(enabled: Boolean) = play(Sfx.Tap, enabled, 0.65f)
     fun playFlip(enabled: Boolean) = play(Sfx.Flip, enabled, 0.85f)
-    fun playMatch(enabled: Boolean) = play(Sfx.Match, enabled, 0.9f)
+
+    /** Match chime whose pitch climbs the pentatonic ladder as the combo grows. */
+    fun playMatch(combo: Int, enabled: Boolean) =
+        play(Sfx.Match, enabled, 0.9f, AudioMix.comboRate(combo))
+
+    /** Replays the neutral match chime (previews, legacy call sites). */
+    fun playMatch(enabled: Boolean) = playMatch(0, enabled)
+
     fun playMismatch(enabled: Boolean) = play(Sfx.Mismatch, enabled, 0.85f)
     fun playHint(enabled: Boolean) = play(Sfx.Hint, enabled, 0.8f)
     fun playShuffle(enabled: Boolean) = play(Sfx.Shuffle, enabled, 0.7f)
@@ -150,6 +196,18 @@ object SoundManager {
     fun playVictory(enabled: Boolean) = play(Sfx.Victory, enabled, 0.95f)
     fun playDefeat(enabled: Boolean) = play(Sfx.Defeat, enabled, 0.85f)
     fun playPause(enabled: Boolean) = play(Sfx.Pause, enabled, 0.55f)
+
+    /** One rising bell per earned star; [index] is 0-based so the three stars climb together. */
+    fun playStar(index: Int, enabled: Boolean) =
+        play(Sfx.Star, enabled, 0.8f, 1f + 0.12f * index.coerceIn(0, 2))
+
+    /** Timer warning. [urgent] also lifts the pitch and volume for the final three seconds. */
+    fun playTick(urgent: Boolean, enabled: Boolean) =
+        play(Sfx.Tick, enabled, if (urgent) 0.62f else 0.38f, if (urgent) 1.12f else 1f)
+
+    fun playWhoosh(enabled: Boolean) = play(Sfx.Whoosh, enabled, 0.55f)
+    fun playBoss(enabled: Boolean) = play(Sfx.Boss, enabled, 0.9f)
+    fun playChest(enabled: Boolean) = play(Sfx.Chest, enabled, 0.9f)
 
     /** Frees native audio resources. Safe to call from the Activity's onDestroy. */
     fun release() {
@@ -300,6 +358,36 @@ object SoundManager {
 
             Sfx.Pause -> emptyBuffer(0.17).also { b ->
                 addTone(b, 0.0, 0.15, 440.0, 0.10, Wave.SINE, attackSec = 0.035)
+            }
+
+            Sfx.Star -> emptyBuffer(0.30).also { b ->
+                addTone(b, 0.0, 0.26, 1046.50, 0.24, Wave.BELL)                    // C6
+                addTone(b, 0.02, 0.20, 1567.98, 0.10, Wave.SINE, attackSec = 0.004) // G6 sparkle
+            }
+
+            Sfx.Tick -> emptyBuffer(0.09).also { b ->
+                addTone(b, 0.0, 0.055, 1320.0, 0.12, Wave.SINE, attackSec = 0.002)
+                addNoise(b, 0.0, 0.02, 0.05, seed = 71, cutoffHz = 6000.0)
+            }
+
+            Sfx.Whoosh -> emptyBuffer(0.26).also { b ->
+                addNoise(b, 0.0, 0.22, 0.22, seed = 37, cutoffHz = 1100.0)
+                addNoise(b, 0.06, 0.16, 0.10, seed = 41, cutoffHz = 4200.0)
+                addTone(b, 0.03, 0.18, 392.0, 0.05, Wave.SINE, attackSec = 0.02)
+            }
+
+            Sfx.Boss -> emptyBuffer(0.62).also { b ->
+                addTone(b, 0.0, 0.32, 82.41, 0.34, Wave.SINE, attackSec = 0.006) // E2
+                addTone(b, 0.0, 0.50, 55.00, 0.22, Wave.SINE, attackSec = 0.010) // A1
+                addNoise(b, 0.0, 0.14, 0.12, seed = 53, cutoffHz = 420.0)
+            }
+
+            Sfx.Chest -> emptyBuffer(0.78).also { b ->
+                val notes = listOf(1046.50, 1318.51, 1567.98, 2093.00) // C6 E6 G6 C7
+                notes.forEachIndexed { index, freq ->
+                    addTone(b, index * 0.09, 0.34, freq, 0.17, Wave.BELL, attackSec = 0.004)
+                }
+                addNoise(b, 0.05, 0.50, 0.04, seed = 61, cutoffHz = 7000.0)
             }
         }
         return toPcm16(buffer)

@@ -21,6 +21,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -31,6 +33,7 @@ import com.vurka.memoji.ui.theme.RoyalBlue
 import com.vurka.memoji.ui.theme.VividRed
 import com.vurka.memoji.util.SoundManager
 import com.vurka.memoji.viewmodel.LevelSelectionViewModel
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -39,6 +42,9 @@ fun SettingsScreen(
     onBackPressed: () -> Unit
 ) {
     val soundEnabled by viewModel.soundEnabled.collectAsState()
+    val masterVolume by viewModel.masterVolume.collectAsState()
+    val musicVolume by viewModel.musicVolume.collectAsState()
+    val effectsVolume by viewModel.effectsVolume.collectAsState()
     val hapticsEnabled by viewModel.hapticsEnabled.collectAsState()
     val themeMode by viewModel.themeMode.collectAsState()
     val isZenMode by viewModel.isZenMode.collectAsState()
@@ -151,18 +157,73 @@ fun SettingsScreen(
                 ) {
                     Column {
                         Text(
-                            "Sound Effects",
+                            "Sound",
                             fontSize = 17.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.onBackground
                         )
-                        Text("Card flips and victory audio", fontSize = 13.sp, color = Color(0xFF94A3B8))
+                        Text("Master switch for music and effects", fontSize = 13.sp, color = Color(0xFF94A3B8))
                     }
                     Switch(
                         checked = soundEnabled,
                         onCheckedChange = { viewModel.setSoundEnabled(it) },
                         modifier = Modifier.testTag("sound_switch"),
                         colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = VividRed)
+                    )
+                }
+            }
+
+            // Separate master / music / effects sliders, stored in DataStore.
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = cardBg),
+                border = cardBorder,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        "Volume",
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                    Text(
+                        if (soundEnabled) {
+                            "Music stays quiet under the sound effects."
+                        } else {
+                            "Muted. Raise Master or switch Sound back on."
+                        },
+                        fontSize = 13.sp,
+                        color = Color(0xFF94A3B8)
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    VolumeSlider(
+                        label = "Master",
+                        value = masterVolume,
+                        testTag = "master_volume_slider",
+                        onChange = viewModel::setMasterVolume
+                    )
+                    VolumeSlider(
+                        label = "Music",
+                        value = musicVolume,
+                        testTag = "music_volume_slider",
+                        onChange = viewModel::setMusicVolume
+                    )
+                    VolumeSlider(
+                        label = "Effects",
+                        value = effectsVolume,
+                        testTag = "effects_volume_slider",
+                        onChange = { value ->
+                            viewModel.setEffectsVolume(value)
+                            // Instant feedback at the new level, without waiting for the flow.
+                            SoundManager.setVolumes(masterVolume, value)
+                            SoundManager.playTick(urgent = false, enabled = soundEnabled)
+                        }
                     )
                 }
             }
@@ -203,9 +264,9 @@ fun SettingsScreen(
                             label = { Text("Flip", fontSize = 12.sp) }
                         )
                         AssistChip(
-                            onClick = { SoundManager.playMatch(true) },
+                            onClick = { SoundManager.playMatch(4, true) },
                             enabled = soundEnabled,
-                            label = { Text("Match", fontSize = 12.sp) }
+                            label = { Text("Match x5", fontSize = 12.sp) }
                         )
                         AssistChip(
                             onClick = { SoundManager.playCombo(true) },
@@ -213,9 +274,34 @@ fun SettingsScreen(
                             label = { Text("Combo", fontSize = 12.sp) }
                         )
                         AssistChip(
+                            onClick = { SoundManager.playStar(2, true) },
+                            enabled = soundEnabled,
+                            label = { Text("Star", fontSize = 12.sp) }
+                        )
+                        AssistChip(
+                            onClick = { SoundManager.playTick(urgent = false, enabled = true) },
+                            enabled = soundEnabled,
+                            label = { Text("Tick", fontSize = 12.sp) }
+                        )
+                        AssistChip(
+                            onClick = { SoundManager.playWhoosh(true) },
+                            enabled = soundEnabled,
+                            label = { Text("Whoosh", fontSize = 12.sp) }
+                        )
+                        AssistChip(
                             onClick = { SoundManager.playCoin(true) },
                             enabled = soundEnabled,
                             label = { Text("Coin", fontSize = 12.sp) }
+                        )
+                        AssistChip(
+                            onClick = { SoundManager.playChest(true) },
+                            enabled = soundEnabled,
+                            label = { Text("Chest", fontSize = 12.sp) }
+                        )
+                        AssistChip(
+                            onClick = { SoundManager.playBoss(true) },
+                            enabled = soundEnabled,
+                            label = { Text("Boss", fontSize = 12.sp) }
                         )
                         AssistChip(
                             onClick = { SoundManager.playVictory(true) },
@@ -391,5 +477,51 @@ fun SettingsScreen(
                 Text("Reset All Game Progress", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
             }
         }
+    }
+}
+
+/**
+ * A labelled volume slider.
+ *
+ * The local value follows the drag, and DataStore is only written when the finger lifts. That keeps
+ * a long drag from producing dozens of preference writes, while the percentage still updates live.
+ */
+@Composable
+private fun VolumeSlider(
+    label: String,
+    value: Float,
+    testTag: String,
+    onChange: (Float) -> Unit,
+) {
+    var local by remember(value) { mutableFloatStateOf(value) }
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(label, fontSize = 14.sp, color = MaterialTheme.colorScheme.onBackground)
+            Text(
+                "${(local * 100).roundToInt()}%",
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Color(0xFF94A3B8)
+            )
+        }
+        Slider(
+            value = local,
+            onValueChange = { local = it },
+            onValueChangeFinished = { onChange(local) },
+            valueRange = 0f..1f,
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag(testTag)
+                .semantics { contentDescription = "$label volume" },
+            colors = SliderDefaults.colors(
+                thumbColor = VividRed,
+                activeTrackColor = VividRed,
+                inactiveTrackColor = Color(0xFFCBD5E1)
+            )
+        )
     }
 }

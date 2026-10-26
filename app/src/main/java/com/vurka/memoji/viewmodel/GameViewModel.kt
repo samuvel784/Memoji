@@ -187,6 +187,15 @@ class GameViewModel(application: Application, val levelNumber: Int) : AndroidVie
             SoundManager.playDefeat(soundEnabled.value)
             HapticManager.triggerMismatch(getApplication(), hapticsEnabled.value)
             recordLoss()
+        } else {
+            // Final ten seconds: a quiet tick, sharper and higher for the last three.
+            val snapshot = _state.value
+            if ((!zen) && (!snapshot.isGameOver) && (!snapshot.isPaused) && (levelConfig.timeLimitSec > 0)) {
+                val remaining = snapshot.timeRemainingSec
+                if (remaining in 1..10) {
+                    SoundManager.playTick(urgent = remaining <= 3, enabled = soundEnabled.value)
+                }
+            }
         }
     }
 
@@ -335,13 +344,9 @@ class GameViewModel(application: Application, val levelNumber: Int) : AndroidVie
                 return
             }
 
-            // Combo milestones get their own rising accent; ordinary matches keep the chime so the
-            // two cues never overlap.
-            if (newCombo > 0 && newCombo % 3 == 0) {
-                SoundManager.playCombo(soundEnabled.value)
-            } else {
-                SoundManager.playMatch(soundEnabled.value)
-            }
+            // The match chime climbs the pentatonic ladder with the combo, so long chains sound
+            // like a melody instead of the same beep repeated.
+            SoundManager.playMatch(newCombo, soundEnabled.value)
             HapticManager.triggerMatch(getApplication(), hapticsEnabled.value)
 
             _state.value = current.copy(

@@ -1,5 +1,39 @@
 # Memoji v2.0 – what changed
 
+## Phase 1 – audio (towards v2.2)
+
+### Separate, persistent volume controls
+* Settings now has **Master**, **Music** and **Effects** sliders, stored in DataStore. The old
+  `sound_enabled` boolean is migrated (on → 100%, off → muted) so existing players keep their choice.
+* `soundEnabled` remains a derived value (`master > 0`), so every existing call site still works.
+* Muting stops both engines; the music slider never bleeds into the effect channel.
+
+### Ambient music per world family
+* Four original 64-second loops (Organic, Festive, Airy, Cosmic) cover worlds 1–5, 6–10, 11–15 and
+  16–20. The map cross-fades as you scroll into a new region; levels select their family directly.
+* Music is synthesised deterministically on the device, cached as WAV, looped with `MediaPlayer`,
+  faded in/out, and paused on `ON_STOP`. Audio focus is requested with `USAGE_GAME`; transient loss
+  pauses, short interruptions duck, and permanent loss stops playback.
+* No audio assets are bundled, no encoder is needed and no permission was added.
+
+### Richer, musical effects
+* Five new cues: **star**, **timer tick**, **whoosh**, **boss drum** and **chest/unlock chime**.
+* The match chime climbs a major pentatonic ladder with the combo (combo 5 is one octave up, capped
+  so SoundPool playback rates stay legal). The timer ticks for the final ten seconds and sharpens in
+  the last three.
+* Effects use shared master × effects gain staging; the engine refuses to play while the app is in
+  the background or while music focus is lost.
+* Cache version bumped so devices regenerate the expanded cue set.
+
+### Settings and docs
+* Volume card with live percentages and effect previews for every new cue.
+* `LICENSES.md` documents every cue and loop: all original, procedurally synthesised, no third-party
+  samples.
+* New tests: gain staging, mute threshold, combo ladder and cap, world-to-music mapping, ambient
+  audibility/length/determinism.
+
+---
+
 ## v2.1 – release pass
 
 ### Every level is open, progress stays honest

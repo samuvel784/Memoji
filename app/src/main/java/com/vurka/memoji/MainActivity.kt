@@ -9,6 +9,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -28,7 +29,9 @@ import com.vurka.memoji.ui.stats.StatsScreen
 import com.vurka.memoji.ui.store.StoreScreen
 import com.vurka.memoji.ui.themes.ThemesScreen
 import com.vurka.memoji.ui.theme.MemoryMatchTheme
+import com.vurka.memoji.util.MusicManager
 import com.vurka.memoji.util.SoundManager
+import com.vurka.memoji.util.WorldMusic
 import com.vurka.memoji.viewmodel.GameViewModel
 import com.vurka.memoji.viewmodel.GameViewModelFactory
 import com.vurka.memoji.viewmodel.LevelSelectionViewModel
@@ -39,9 +42,29 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         // Renders the deterministic sound set once, off the main thread.
         SoundManager.init(this)
+        MusicManager.init(this)
         setContent {
             val levelSelectionViewModel: LevelSelectionViewModel = viewModel()
             val themeMode by levelSelectionViewModel.themeMode.collectAsState()
+            val audioSettings by levelSelectionViewModel.audioSettings.collectAsState()
+            val lastPlayedLevel by levelSelectionViewModel.lastPlayedLevel.collectAsState()
+
+            // Push the persisted sliders into both engines only after DataStore has answered.
+            // Until then the engines keep their defaults but nothing starts, so a muted player
+            // never hears a startup note.
+            LaunchedEffect(audioSettings) {
+                audioSettings?.let { settings ->
+                    SoundManager.setVolumes(settings.master, settings.effects)
+                    MusicManager.setVolumes(settings.master, settings.music)
+                }
+            }
+
+            // Home and most menus inherit the ambience of the level you last played.
+            LaunchedEffect(lastPlayedLevel, audioSettings) {
+                if (lastPlayedLevel > 0 && audioSettings != null) {
+                    MusicManager.setGroup(WorldMusic.groupForLevel(lastPlayedLevel))
+                }
+            }
 
             MemoryMatchTheme(themeMode = themeMode) {
                 val navController = rememberNavController()
@@ -198,9 +221,28 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onStart() {
+        super.onStart()
+        SoundManager.setAppForeground(true)
+        MusicManager.onEnterForeground()
+    }
+
+    override fun onStop() {
+        // No cue or loop may leak into the background.
+        SoundManager.setAppForeground(false)
+        MusicManager.onLeaveForeground()
+        super.onStop()
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         try {
+            MusicManager.release()
+        } catch (_: Exception) {
+        }
+        try {
             SoundManager.release()
-        } catch (_: Exception) {}    }
+        } catch (_: Exception) {
+        }
+    }
 }

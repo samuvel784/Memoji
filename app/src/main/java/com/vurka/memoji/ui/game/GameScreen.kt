@@ -71,7 +71,9 @@ import com.vurka.memoji.ui.theme.GoldStar
 import com.vurka.memoji.ui.theme.LocalReduceMotion
 import com.vurka.memoji.ui.theme.RoyalBlue
 import com.vurka.memoji.ui.theme.VividRed
+import com.vurka.memoji.util.MusicManager
 import com.vurka.memoji.util.SoundManager
+import com.vurka.memoji.util.WorldMusic
 import com.vurka.memoji.viewmodel.GameViewModel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
@@ -96,6 +98,24 @@ fun GameScreen(
     val config = viewModel.levelConfig
     val isDark = MaterialTheme.colorScheme.background.red < 0.5f
     val reduceMotion = LocalReduceMotion.current
+
+    // World ambience, plus a one-off transition cue when the level opens.
+    LaunchedEffect(levelNumber) {
+        MusicManager.setGroup(WorldMusic.groupForLevel(levelNumber))
+        // Give the persisted volume a couple of frames to arrive before making any noise.
+        delay(320)
+        if (config.isBoss) SoundManager.playBoss(soundEnabled) else SoundManager.playWhoosh(soundEnabled)
+    }
+
+    // One rising bell per star, timed to follow the victory fanfare.
+    LaunchedEffect(state.isWon, state.stars) {
+        if (!state.isWon) return@LaunchedEffect
+        delay(1250)
+        repeat(state.stars.coerceIn(0, 3)) { index ->
+            SoundManager.playStar(index, soundEnabled)
+            delay(260)
+        }
+    }
 
     // The clock must never run while the app is in the background.
     LifecycleEventEffect(Lifecycle.Event.ON_STOP) { viewModel.pauseIfRunning() }

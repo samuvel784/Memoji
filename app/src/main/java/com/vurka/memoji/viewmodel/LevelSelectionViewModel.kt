@@ -5,9 +5,11 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.vurka.memoji.data.LevelCatalog
 import com.vurka.memoji.data.ProgressRepository
+import com.vurka.memoji.data.AudioSettings
 import com.vurka.memoji.data.ThemeRepository
 import com.vurka.memoji.model.CardBackTheme
 import com.vurka.memoji.model.LevelConfig
+import com.vurka.memoji.util.AudioMix
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -56,6 +58,34 @@ class LevelSelectionViewModel(application: Application) : AndroidViewModel(appli
         initialValue = true
     )
 
+    val masterVolume: StateFlow<Float> = repository.masterVolume.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = AudioMix.DEFAULT_MASTER
+    )
+
+    val musicVolume: StateFlow<Float> = repository.musicVolume.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = AudioMix.DEFAULT_MUSIC
+    )
+
+    val effectsVolume: StateFlow<Float> = repository.effectsVolume.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = AudioMix.DEFAULT_EFFECTS
+    )
+
+    /**
+     * Null until DataStore has produced a real snapshot. The UI uses it to avoid starting music
+     * with default volumes for a player who has muted the app.
+     */
+    val audioSettings: StateFlow<AudioSettings?> = repository.audioSettings.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = null
+    )
+
     val hapticsEnabled: StateFlow<Boolean> = repository.hapticsEnabled.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
@@ -85,6 +115,24 @@ class LevelSelectionViewModel(application: Application) : AndroidViewModel(appli
     fun setSoundEnabled(enabled: Boolean) {
         viewModelScope.launch {
             repository.setSoundEnabled(enabled)
+        }
+    }
+
+    fun setMasterVolume(volume: Float) {
+        viewModelScope.launch {
+            repository.setMasterVolume(volume)
+        }
+    }
+
+    fun setMusicVolume(volume: Float) {
+        viewModelScope.launch {
+            repository.setMusicVolume(volume)
+        }
+    }
+
+    fun setEffectsVolume(volume: Float) {
+        viewModelScope.launch {
+            repository.setEffectsVolume(volume)
         }
     }
 

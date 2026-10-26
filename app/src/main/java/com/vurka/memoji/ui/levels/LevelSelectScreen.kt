@@ -69,7 +69,9 @@ import com.vurka.memoji.ui.components.AnimatedBackdrop
 import com.vurka.memoji.ui.components.bob
 import com.vurka.memoji.ui.components.pressBounce
 import com.vurka.memoji.ui.components.pulse
+import com.vurka.memoji.util.MusicManager
 import com.vurka.memoji.util.SoundManager
+import com.vurka.memoji.util.WorldMusic
 import com.vurka.memoji.viewmodel.LevelSelectionViewModel
 import kotlinx.coroutines.launch
 import kotlin.math.abs
@@ -162,6 +164,12 @@ fun LevelSelectScreen(
         derivedStateOf { rows[(listState.firstVisibleItemIndex + 4).coerceIn(0, rows.lastIndex)].worldIndex }
     }
     val world = worlds[(visibleWorldIdx - 1).coerceIn(0, worlds.lastIndex)]
+
+    // Scrolling into a new region changes the ambience.
+    LaunchedEffect(world.index) {
+        MusicManager.setGroup(WorldMusic.groupForWorld(world.index))
+    }
+
     val showJump by remember(currentIndex) {
         derivedStateOf { abs(listState.firstVisibleItemIndex + 4 - currentIndex) > 7 }
     }

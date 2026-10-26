@@ -4,11 +4,22 @@ import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.*
 import androidx.datastore.preferences.preferencesDataStore
+import com.vurka.memoji.util.AudioMix
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "memory_match_prefs")
+
+/** The three audio sliders, bundled so the UI and the engines read one consistent snapshot. */
+data class AudioSettings(
+    val master: Float = AudioMix.DEFAULT_MASTER,
+    val music: Float = AudioMix.DEFAULT_MUSIC,
+    val effects: Float = AudioMix.DEFAULT_EFFECTS,
+) {
+    val isAudible: Boolean get() = AudioMix.isAudible(master)
+}
 
 /** Outcome of recording one finished level, used to drive the victory screen. */
 data class LevelRecordResult(
@@ -24,6 +35,9 @@ class ProgressRepository(private val context: Context) {
     companion object {
         private val LAST_PLAYED_LEVEL_KEY = intPreferencesKey("last_played_level")
         private val SOUND_ENABLED_KEY = booleanPreferencesKey("sound_enabled")
+        private val MASTER_VOLUME_KEY = floatPreferencesKey("master_volume")
+        private val MUSIC_VOLUME_KEY = floatPreferencesKey("music_volume")
+        private val EFFECTS_VOLUME_KEY = floatPreferencesKey("effects_volume")
         private val HAPTICS_ENABLED_KEY = booleanPreferencesKey("haptics_enabled")
         private val THEME_MODE_KEY = stringPreferencesKey("theme_mode") // "Default", "Light", "Dark"
         private val IS_ZEN_MODE_KEY = booleanPreferencesKey("is_zen_mode")
@@ -54,9 +68,32 @@ class ProgressRepository(private val context: Context) {
         (prefs[LAST_PLAYED_LEVEL_KEY] ?: 1).coerceIn(1, LevelCatalog.TOTAL_LEVELS)
     }
 
-    val soundEnabled: Flow<Boolean> = dataStore.data.map { prefs ->
-        prefs[SOUND_ENABLED_KEY] ?: true
+    /**
+     * Master volume. Older builds only stored the boolean [SOUND_ENABLED_KEY]; it is migrated here
+     * (on -> 1, off -> 0) so nobody loses their mute preference.
+     */
+    val masterVolume: Flow<Float> = dataStore.data.map { prefs ->
+        prefs[MASTER_VOLUME_KEY]
+            ?: if (prefs[SOUND_ENABLED_KEY] == false) 0f else AudioMix.DEFAULT_MASTER
     }
+
+    val musicVolume: Flow<Float> = dataStore.data.map { prefs ->
+        prefs[MUSIC_VOLUME_KEY] ?: AudioMix.DEFAULT_MUSIC
+    }
+
+    val effectsVolume: Flow<Float> = dataStore.data.map { prefs ->
+        prefs[EFFECTS_VOLUME_KEY] ?: AudioMix.DEFAULT_EFFECTS
+    }
+
+    val audioSettings: Flow<AudioSettings> =
+        combine(masterVolume, musicVolume, effectsVolume) { master, music, effects ->
+            AudioSettings(master = master, music = music, effects = effects)
+        }.distinctUntilChanged()
+
+    /** Derived from the master slider so every existing call site keeps working unchanged. */
+    val soundEnabled: Flow<Boolean> = masterVolume
+        .map { AudioMix.isAudible(it) }
+        .distinctUntilChanged()
 
     val hapticsEnabled: Flow<Boolean> = dataStore.data.map { prefs ->
         prefs[HAPTICS_ENABLED_KEY] ?: true
@@ -168,7 +205,19 @@ class ProgressRepository(private val context: Context) {
     }
 
     suspend fun setSoundEnabled(enabled: Boolean) {
-        dataStore.edit { it[SOUND_ENABLED_KEY] = enabled }
+        setMasterVolume(if (enabled) 1f else 0f)
+    }
+
+    suspend fun setMasterVolume(volume: Float) {
+        dataStore.edit { it[MASTER_VOLUME_KEY] = volume.coerceIn(0f, 1f) }
+    }
+
+    suspend fun setMusicVolume(volume: Float) {
+        dataStore.edit { it[MUSIC_VOLUME_KEY] = volume.coerceIn(0f, 1f) }
+    }
+
+    suspend fun setEffectsVolume(volume: Float) {
+        dataStore.edit { it[EFFECTS_VOLUME_KEY] = volume.coerceIn(0f, 1f) }
     }
 
     suspend fun setHapticsEnabled(enabled: Boolean) {
@@ -304,12 +353,18 @@ class ProgressRepository(private val context: Context) {
 
     suspend fun resetProgress() {
         dataStore.edit { prefs ->
-            val sound = prefs[SOUND_ENABLED_KEY] ?: true
+            // Migrate the old boolean too, so a muted player stays muted after a reset.
+            val master = prefs[MASTER_VOLUME_KEY]
+                ?: if (prefs[SOUND_ENABLED_KEY] == false) 0f else AudioMix.DEFAULT_MASTER
+            val music = prefs[MUSIC_VOLUME_KEY] ?: AudioMix.DEFAULT_MUSIC
+            val effects = prefs[EFFECTS_VOLUME_KEY] ?: AudioMix.DEFAULT_EFFECTS
             val haptics = prefs[HAPTICS_ENABLED_KEY] ?: true
             val theme = prefs[THEME_MODE_KEY] ?: "Default"
             val zen = prefs[IS_ZEN_MODE_KEY] ?: false
             prefs.clear()
-            prefs[SOUND_ENABLED_KEY] = sound
+            prefs[MASTER_VOLUME_KEY] = master
+            prefs[MUSIC_VOLUME_KEY] = music
+            prefs[EFFECTS_VOLUME_KEY] = effects
             prefs[HAPTICS_ENABLED_KEY] = haptics
             prefs[THEME_MODE_KEY] = theme
             prefs[IS_ZEN_MODE_KEY] = zen
