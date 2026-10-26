@@ -18,11 +18,37 @@ class LevelSelectionViewModel(application: Application) : AndroidViewModel(appli
     private val repository = ProgressRepository(application)
     private val themeRepository = ThemeRepository(application)
 
-    val highestUnlockedLevel: StateFlow<Int> = repository.highestUnlockedLevel.stateIn(
+    val lastPlayedLevel: StateFlow<Int> = repository.lastPlayedLevel.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
-        initialValue = 1
+        // 0 = "still loading", so the UI never mistakes a default for real progress.
+        initialValue = 0
     )
+
+    /** Levels the player has genuinely completed. Level availability never derives from this. */
+    val completedLevels: StateFlow<Set<Int>> = repository.completedLevels.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptySet()
+    )
+
+    val totalLevelsCompleted: StateFlow<Int> = repository.totalLevelsCompleted.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = 0
+    )
+
+    val highestCompletedLevel: StateFlow<Int> = repository.highestCompletedLevel.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = 0
+    )
+
+    fun setLastPlayedLevel(level: Int) {
+        viewModelScope.launch {
+            repository.setLastPlayedLevel(level)
+        }
+    }
 
     val soundEnabled: StateFlow<Boolean> = repository.soundEnabled.stateIn(
         scope = viewModelScope,
@@ -91,13 +117,13 @@ class LevelSelectionViewModel(application: Application) : AndroidViewModel(appli
     fun getBestTime(level: Int): Flow<Int> = repository.getLevelBestTime(level)
 
     val themes = listOf(
-        CardBackTheme("default", "Classic Blue", "The original design", 1, "🃏"),
-        CardBackTheme("red_crimson", "Crimson Flame", "Unlocked at Level 50", 50, "🔥"),
-        CardBackTheme("aurora_mint", "Aurora Mint", "Unlocked at Level 100", 100, "🍀"),
-        CardBackTheme("royal_gold", "Royal Gold", "Unlocked at Level 200", 200, "👑"),
-        CardBackTheme("neon_candy", "Neon Candy", "Unlocked at Level 350", 350, "🍭"),
-        CardBackTheme("space_void", "Space Void", "Unlocked at Level 500", 500, "🌌"),
-        CardBackTheme("dragon_fire", "Dragon Fire", "Unlocked at Level 800", 800, "🐉")
+        CardBackTheme("default", "Classic Blue", "The original design", 0, "🃏"),
+        CardBackTheme("red_crimson", "Crimson Flame", "Complete 50 levels", 50, "🔥"),
+        CardBackTheme("aurora_mint", "Aurora Mint", "Complete 100 levels", 100, "🍀"),
+        CardBackTheme("royal_gold", "Royal Gold", "Complete 200 levels", 200, "👑"),
+        CardBackTheme("neon_candy", "Neon Candy", "Complete 350 levels", 350, "🍭"),
+        CardBackTheme("space_void", "Space Void", "Complete 500 levels", 500, "🌌"),
+        CardBackTheme("dragon_fire", "Dragon Fire", "Complete 800 levels", 800, "🐉")
     )
 
     val selectedThemeId: StateFlow<String> = themeRepository.selectedThemeId.stateIn(

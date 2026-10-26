@@ -27,18 +27,23 @@ fun StatsScreen(
     viewModel: LevelSelectionViewModel,
     onBackPressed: () -> Unit,
 ) {
-    val highestUnlocked by viewModel.highestUnlockedLevel.collectAsState()
     val starsMap by viewModel.starsMap.collectAsState()
+    val totalStars by viewModel.totalStars.collectAsState()
     val dailyStreak by viewModel.dailyStreak.collectAsState()
     val totalGamesPlayed by viewModel.totalGamesPlayed.collectAsState()
     val perfectGames by viewModel.perfectGames.collectAsState()
     val isDark = MaterialTheme.colorScheme.background.red < 0.5f
 
-    // Completing the final level does not unlock a "level 1001", so count recorded stars instead.
-    val levelsCompleted = starsMap.count { it.value > 0 }
+    // Completion is derived from recorded stars, so it stays honest even after a level reset and
+    // never treats "all levels selectable" as progress.
+    val levelsCompleted by viewModel.totalLevelsCompleted.collectAsState()
+    val highestCompleted by viewModel.highestCompletedLevel.collectAsState()
+    val lastPlayed by viewModel.lastPlayedLevel.collectAsState()
 
-    val currentWorldIndex = ((highestUnlocked - 1).coerceIn(0, LevelCatalog.TOTAL_LEVELS - 1) / LevelCatalog.LEVELS_PER_WORLD) + 1
-    val worldInfo = LevelCatalog.getWorldInfo(highestUnlocked)
+    // The current world follows real progress; a brand-new player sits in world 1.
+    val progressLevel = highestCompleted.coerceIn(1, LevelCatalog.TOTAL_LEVELS)
+    val currentWorldIndex = ((progressLevel - 1) / LevelCatalog.LEVELS_PER_WORLD) + 1
+    val worldInfo = LevelCatalog.getWorldInfo(progressLevel)
     val worldStart = (currentWorldIndex - 1) * LevelCatalog.LEVELS_PER_WORLD + 1
     val worldEnd = currentWorldIndex * LevelCatalog.LEVELS_PER_WORLD
     val completedInWorld = (worldStart..worldEnd).count { (starsMap[it] ?: 0) > 0 }
@@ -75,13 +80,15 @@ fun StatsScreen(
                 colorB = worldInfo.colorB,
                 isDark = isDark
             )
-            StatCard(title = "Highest Unlocked Level", value = "$highestUnlocked / ${LevelCatalog.TOTAL_LEVELS}", icon = "🚀", isDark = isDark, accentColor = VividRed)
+            StatCard(title = "Levels Available", value = "${LevelCatalog.TOTAL_LEVELS} • All unlocked", icon = "🚀", isDark = isDark, accentColor = VividRed)
             StatCard(title = "Levels Completed", value = "$levelsCompleted", icon = "🏆", isDark = isDark, accentColor = RoyalBlue)
-            StatCard(title = "Completion Rate", value = "${(levelsCompleted * 100 / LevelCatalog.TOTAL_LEVELS).coerceIn(0, 100)}%", icon = "📈", isDark = isDark, accentColor = VividRed)
+            StatCard(title = "Total Stars", value = "$totalStars / ${LevelCatalog.TOTAL_LEVELS * 3}", icon = "⭐", isDark = isDark, accentColor = VividRed)
+            StatCard(title = "Completion Rate", value = "${(levelsCompleted * 100 / LevelCatalog.TOTAL_LEVELS).coerceIn(0, 100)}%", icon = "📈", isDark = isDark, accentColor = RoyalBlue)
+            StatCard(title = "Last Played Level", value = if (lastPlayed in 1..LevelCatalog.TOTAL_LEVELS) "$lastPlayed" else "—", icon = "📍", isDark = isDark, accentColor = VividRed)
             StatCard(title = "Daily Streak", value = "$dailyStreak 🔥", icon = "⚡", isDark = isDark, accentColor = VividRed)
             StatCard(title = "Total Games Played", value = "$totalGamesPlayed", icon = "🎮", isDark = isDark, accentColor = RoyalBlue)
             StatCard(title = "Perfect Games (No Mistakes)", value = "$perfectGames", icon = "✨", isDark = isDark, accentColor = VividRed)
-            StatCard(title = "Perfect Rate", value = "${if (totalGamesPlayed > 0) (perfectGames * 100 / totalGamesPlayed) else 0}%", icon = "⭐", isDark = isDark, accentColor = RoyalBlue)
+            StatCard(title = "Perfect Rate", value = "${if (totalGamesPlayed > 0) (perfectGames * 100 / totalGamesPlayed) else 0}%", icon = "🌟", isDark = isDark, accentColor = RoyalBlue)
         }
     }
 }

@@ -66,6 +66,7 @@ fun HomeScreen(
 ) {
     val streak by viewModel.dailyStreak.collectAsState()
     val totalStars by viewModel.totalStars.collectAsState()
+    val lastPlayed by viewModel.lastPlayedLevel.collectAsState()
     var showHowToPlay by remember { mutableStateOf(false) }
 
     if (showHowToPlay) HowToPlayBottomSheet(onDismiss = { showHowToPlay = false })
@@ -254,16 +255,22 @@ fun HomeScreen(
             modifier = Modifier.align(Alignment.BottomEnd).navigationBarsPadding().padding(end = 16.dp, bottom = 24.dp)
         )
 
-        // ---------- Bottom Center: Bright PLAY Action Pod (Level 1) ----------
+        // ---------- Bottom Center: Bright PLAY Action Pod (Continue/Play) ----------
+        val continueLevel = if (lastPlayed in 1..LevelCatalog.TOTAL_LEVELS) lastPlayed else 1
         BrightPlayButton(
-            onClick = { onPlayClicked(1) },
+            levelNumber = continueLevel,
+            onClick = { onPlayClicked(continueLevel) },
             modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 28.dp)
         )
     }
 }
 
 @Composable
-private fun BrightPlayButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
+private fun BrightPlayButton(
+    levelNumber: Int,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
     val ring by rememberInfiniteTransition(label = "ring").animateFloat(
         0f, 1f, infiniteRepeatable(tween(1600, easing = LinearOutSlowInEasing)), label = "r"
     )
@@ -300,8 +307,8 @@ private fun BrightPlayButton(onClick: () -> Unit, modifier: Modifier = Modifier)
             Icon(Icons.Default.PlayArrow, contentDescription = "Play", tint = Color.White, modifier = Modifier.size(32.dp))
             Spacer(Modifier.width(6.dp))
             Column {
-                Text("PLAY", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Black, letterSpacing = 2.sp)
-                Text("LEVEL 1", color = Color.White.copy(alpha = 0.95f), fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp)
+                Text(if (levelNumber == 1) "PLAY" else "CONTINUE", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Black, letterSpacing = 2.sp)
+                Text("LEVEL $levelNumber", color = Color.White.copy(alpha = 0.95f), fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp)
             }
         }
     }

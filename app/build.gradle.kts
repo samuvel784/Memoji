@@ -3,6 +3,9 @@ plugins {
   alias(libs.plugins.kotlin.compose)
 }
 
+// Release signing is opt-in: it comes from the environment (never from source control).
+val releaseKeystoreFile = file(System.getenv("KEYSTORE_PATH") ?: "${rootDir}/my-upload-key.jks")
+
 android {
   namespace = "com.vurka.memoji"
   compileSdk { version = release(37) }
@@ -17,22 +20,18 @@ android {
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
 
-  // Do not remove or modify these signingConfigs. They are necessary for building, installing,
-  // and updating Android apps in AI Studio.
+  // Debug builds always sign with the local debug key so `installDebug` keeps working.
+  // Release builds never fall back to it: if no upload key is configured, the packaging
+  // tasks are blocked by the `verifyReleaseSigning` task defined at the bottom of this file.
   signingConfigs {
     create("release") {
-      val keystorePath = System.getenv("KEYSTORE_PATH") ?: "${rootDir}/my-upload-key.jks"
-      val keystoreFile = file(keystorePath)
-      if (keystoreFile.exists()) {
-        storeFile = keystoreFile
-        storePassword = System.getenv("STORE_PASSWORD")
-        keyAlias = "upload"
-        keyPassword = System.getenv("KEY_PASSWORD")
-      } else {
-        storeFile = file("${rootDir}/debug.keystore")
-        storePassword = "android"
-        keyAlias = "androiddebugkey"
-        keyPassword = "android"
+      val storePass = System.getenv("STORE_PASSWORD")
+      val keyPass = System.getenv("KEY_PASSWORD")
+      if (releaseKeystoreFile.exists() && !storePass.isNullOrBlank() && !keyPass.isNullOrBlank()) {
+        storeFile = releaseKeystoreFile
+        storePassword = storePass
+        keyAlias = System.getenv("KEY_ALIAS") ?: "upload"
+        keyPassword = keyPass
       }
     }
     create("debugConfig") {
@@ -85,6 +84,36 @@ android {
     includeInBundle = true
   }
 }
+
+/**
+ * Guards release packaging so a build can never be signed with the public debug key.
+ * It runs only for the tasks that actually produce a signed release artifact, which keeps
+ * `assembleDebug` and `lintRelease` working without publishing credentials.
+ */
+val verifyReleaseSigning = tasks.register("verifyReleaseSigning") {
+  group = "verification"
+  description = "Aborts unless a real upload keystore and its passwords are configured."
+  doFirst {
+    val storePass = System.getenv("STORE_PASSWORD")
+    val keyPass = System.getenv("KEY_PASSWORD")
+    val missing = buildList {
+      if (!releaseKeystoreFile.exists()) add("keystore file (${releaseKeystoreFile.absolutePath})")
+      if (storePass.isNullOrBlank()) add("STORE_PASSWORD")
+      if (keyPass.isNullOrBlank()) add("KEY_PASSWORD")
+    }
+    if (missing.isNotEmpty()) {
+      throw GradleException(
+        "Release signing is not configured. Missing: ${missing.joinToString()}. " +
+          "Set KEYSTORE_PATH/STORE_PASSWORD/KEY_PASSWORD (plus optional KEY_ALIAS) or place " +
+          "my-upload-key.jks in the project root. See RELEASE.md. " +
+          "The app is deliberately never signed with debug.keystore for release."
+      )
+    }
+  }
+}
+
+tasks.matching { it.name == "packageRelease" || it.name == "packageReleaseBundle" }
+  .configureEach { dependsOn(verifyReleaseSigning) }
 
 // Lean dependency set: the game is fully offline, so there is no networking, analytics, ads,
 // Firebase or location code in the app. That keeps the APK small and the Play "Data safety"

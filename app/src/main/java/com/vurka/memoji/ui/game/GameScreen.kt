@@ -241,6 +241,15 @@ fun GameScreen(
                                 fontSize = 14.sp
                             )
                         }
+                        if (state.coinsAwarded > 0) {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(
+                                "🪙 +${state.coinsAwarded} coins (first clear)",
+                                fontWeight = FontWeight.Bold,
+                                color = GoldStar,
+                                fontSize = 14.sp
+                            )
+                        }
                     }
                 },
                 confirmButton = {

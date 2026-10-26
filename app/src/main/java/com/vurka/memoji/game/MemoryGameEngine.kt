@@ -32,7 +32,11 @@ data class GameState(
     /** Incremented every time the unmatched cards are reshuffled (used to trigger UI effects). */
     val shuffleCount: Int = 0,
     /** Why the run ended in a loss: "time", "moves" or "". */
-    val lossReason: String = ""
+    val lossReason: String = "",
+    /** Coins paid for this victory (0 on a replay of an already-cleared level). */
+    val coinsAwarded: Int = 0,
+    /** True when this victory cleared the level for the first time. */
+    val isFirstClear: Boolean = false,
 )
 
 class MemoryGameEngine(private val levelConfig: LevelConfig, private val random: Random = Random.Default) {

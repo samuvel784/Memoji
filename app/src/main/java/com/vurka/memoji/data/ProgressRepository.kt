@@ -10,11 +10,18 @@ import kotlinx.coroutines.flow.map
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "memory_match_prefs")
 
+/** Outcome of recording one finished level, used to drive the victory screen. */
+data class LevelRecordResult(
+    val stars: Int,
+    val isFirstClear: Boolean,
+    val coinsAwarded: Int,
+)
+
 class ProgressRepository(private val context: Context) {
     private val dataStore = context.dataStore
 
     companion object {
-        private val HIGHEST_UNLOCKED_KEY = intPreferencesKey("highest_unlocked_level")
+        private val LAST_PLAYED_LEVEL_KEY = intPreferencesKey("last_played_level")
         private val SOUND_ENABLED_KEY = booleanPreferencesKey("sound_enabled")
         private val HAPTICS_ENABLED_KEY = booleanPreferencesKey("haptics_enabled")
         private val THEME_MODE_KEY = stringPreferencesKey("theme_mode") // "Default", "Light", "Dark"
@@ -28,14 +35,22 @@ class ProgressRepository(private val context: Context) {
         private val TOTAL_FLIPS_KEY = intPreferencesKey("total_card_flips")
         private val ANIMAL_FLIPS_KEY = intPreferencesKey("animal_card_flips")
 
+        /** Coins for first clearing a level: a flat bonus plus a small star bonus. */
+        const val COINS_PER_FIRST_CLEAR = 15
+        const val COINS_PER_STAR = 5
+
         fun starsKey(level: Int) = intPreferencesKey("stars_$level")
         fun bestMovesKey(level: Int) = intPreferencesKey("best_moves_$level")
         fun bestTimeKey(level: Int) = intPreferencesKey("best_time_$level")
         fun rewardClaimedKey(rewardId: String) = booleanPreferencesKey("reward_claimed_$rewardId")
     }
 
-    val highestUnlockedLevel: Flow<Int> = dataStore.data.map { prefs ->
-        prefs[HIGHEST_UNLOCKED_KEY] ?: LevelCatalog.TOTAL_LEVELS
+    /**
+     * The level the Continue button should resume from. This is *not* a progress metric: every
+     * level 1..1000 is always playable, so availability never derives from this value.
+     */
+    val lastPlayedLevel: Flow<Int> = dataStore.data.map { prefs ->
+        (prefs[LAST_PLAYED_LEVEL_KEY] ?: 1).coerceIn(1, LevelCatalog.TOTAL_LEVELS)
     }
 
     val soundEnabled: Flow<Boolean> = dataStore.data.map { prefs ->
@@ -79,31 +94,68 @@ class ProgressRepository(private val context: Context) {
 
     val totalStarsEarned: Flow<Int> = levelStars.map { it.values.sum() }
 
-    suspend fun unlockNextLevel(completedLevel: Int, nextLevel: Int, stars: Int, moves: Int, timeSec: Int) {
+    /**
+     * Levels that have actually been completed (at least one star). This is real progress and is
+     * completely independent from level availability: all 1..1000 levels are always selectable.
+     */
+    val completedLevels: Flow<Set<Int>> = levelStars.map { stars ->
+        stars.filterValues { it > 0 }.keys
+    }
+
+    val totalLevelsCompleted: Flow<Int> = completedLevels.map { it.size }
+
+    /** Highest level the player has genuinely completed, or 0 for a brand-new player. */
+    val highestCompletedLevel: Flow<Int> = completedLevels.map { it.maxOrNull() ?: 0 }
+
+    suspend fun setLastPlayedLevel(level: Int) {
         dataStore.edit { prefs ->
-            val currentHighest = prefs[HIGHEST_UNLOCKED_KEY] ?: 1
-            if (nextLevel > currentHighest) {
-                prefs[HIGHEST_UNLOCKED_KEY] = nextLevel.coerceAtMost(LevelCatalog.TOTAL_LEVELS)
-            }
-
-            val sKey = starsKey(completedLevel)
-            val existingStars = prefs[sKey] ?: 0
-            if (stars > existingStars) {
-                prefs[sKey] = stars
-            }
-
-            val mKey = bestMovesKey(completedLevel)
-            val existingMoves = prefs[mKey] ?: 0
-            if (existingMoves == 0 || moves < existingMoves) {
-                prefs[mKey] = moves
-            }
-
-            val tKey = bestTimeKey(completedLevel)
-            val existingTime = prefs[tKey] ?: 0
-            if (existingTime == 0 || timeSec < existingTime) {
-                prefs[tKey] = timeSec
-            }
+            prefs[LAST_PLAYED_LEVEL_KEY] = level.coerceIn(1, LevelCatalog.TOTAL_LEVELS)
         }
+    }
+
+    /**
+     * Records the outcome of one finished level exactly once per victory.
+     *
+     * Stars and personal bests only ever improve, so replaying a level with a worse result cannot
+     * erase an existing record. Coins are only paid the first time a level is cleared, which keeps
+     * the reward loop from being farmed by replaying level 1.
+     */
+    suspend fun recordLevelResult(
+        level: Int,
+        stars: Int,
+        moves: Int,
+        timeSec: Int,
+    ): LevelRecordResult {
+        val safeLevel = level.coerceIn(1, LevelCatalog.TOTAL_LEVELS)
+        val safeStars = stars.coerceIn(0, 3)
+        var result = LevelRecordResult(stars = safeStars, isFirstClear = false, coinsAwarded = 0)
+
+        dataStore.edit { prefs ->
+            prefs[LAST_PLAYED_LEVEL_KEY] = safeLevel
+
+            val sKey = starsKey(safeLevel)
+            val existingStars = prefs[sKey] ?: 0
+            val firstClear = existingStars <= 0
+            if (safeStars > existingStars) prefs[sKey] = safeStars
+
+            val mKey = bestMovesKey(safeLevel)
+            val existingMoves = prefs[mKey] ?: 0
+            if (existingMoves == 0 || moves < existingMoves) prefs[mKey] = moves
+
+            val tKey = bestTimeKey(safeLevel)
+            val existingTime = prefs[tKey] ?: 0
+            if (existingTime == 0 || timeSec < existingTime) prefs[tKey] = timeSec
+
+            val award = if (firstClear) COINS_PER_FIRST_CLEAR + COINS_PER_STAR * safeStars else 0
+            if (award > 0) prefs[COINS_KEY] = (prefs[COINS_KEY] ?: 0) + award
+
+            result = LevelRecordResult(
+                stars = maxOf(existingStars, safeStars),
+                isFirstClear = firstClear,
+                coinsAwarded = award,
+            )
+        }
+        return result
     }
 
     suspend fun setSoundEnabled(enabled: Boolean) {
@@ -232,22 +284,12 @@ class ProgressRepository(private val context: Context) {
     }
 
     suspend fun updateDailyStreak() {
-        val currentTime = System.currentTimeMillis()
+        val now = System.currentTimeMillis()
         dataStore.edit { prefs ->
             val lastDate = prefs[LAST_PLAY_DATE_KEY] ?: 0L
             val currentStreak = prefs[DAILY_STREAK_KEY] ?: 0
-
-            val oneDayMs = 24 * 60 * 60 * 1000L
-            val daysDifference = (currentTime - lastDate) / oneDayMs
-
-            val newStreak = when {
-                lastDate == 0L -> 1
-                daysDifference == 0L -> currentStreak // same day
-                daysDifference == 1L -> currentStreak + 1 // consecutive day
-                else -> 1 // gap, reset
-            }
-            prefs[DAILY_STREAK_KEY] = newStreak
-            prefs[LAST_PLAY_DATE_KEY] = currentTime
+            prefs[DAILY_STREAK_KEY] = StreakCalculator.nextStreak(currentStreak, lastDate, now)
+            prefs[LAST_PLAY_DATE_KEY] = now
         }
     }
 
@@ -262,7 +304,7 @@ class ProgressRepository(private val context: Context) {
             prefs[HAPTICS_ENABLED_KEY] = haptics
             prefs[THEME_MODE_KEY] = theme
             prefs[IS_ZEN_MODE_KEY] = zen
-            prefs[HIGHEST_UNLOCKED_KEY] = LevelCatalog.TOTAL_LEVELS
+            prefs[LAST_PLAYED_LEVEL_KEY] = 1
         }
     }
 }

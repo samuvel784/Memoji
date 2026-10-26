@@ -67,6 +67,11 @@ class GameViewModel(application: Application, val levelNumber: Int) : AndroidVie
     private var autoHideJob: Job? = null
 
     init {
+        // Single authoritative "last played" write: entering a level from Home, the map, or a
+        // victory shortcut all end up here.
+        viewModelScope.launch {
+            progressRepository.setLastPlayedLevel(levelNumber)
+        }
         startNewGame()
     }
 
@@ -94,7 +99,6 @@ class GameViewModel(application: Application, val levelNumber: Int) : AndroidVie
             hintsLeft = if (isZenMode.value) -1 else levelConfig.maxHints,
             shuffleCountdownSec = if (isZenMode.value) 0 else levelConfig.shuffleIntervalSec,
         )
-        SoundManager.playShuffle(soundEnabled.value)
 
         previewJob = viewModelScope.launch {
             delay(levelConfig.previewTimeSec.seconds)
@@ -260,9 +264,6 @@ class GameViewModel(application: Application, val levelNumber: Int) : AndroidVie
         val zen = isZenMode.value
 
         if (firstCard.emojiId == clickedCard.emojiId) {
-            SoundManager.playMatch(soundEnabled.value)
-            HapticManager.triggerMatch(getApplication(), hapticsEnabled.value)
-
             val matchedCards = updatedCards.map {
                 if ((it.id == cardId) || (it.id == firstCard.id)) it.copy(isMatched = true) else it
             }
@@ -272,6 +273,8 @@ class GameViewModel(application: Application, val levelNumber: Int) : AndroidVie
             val won = newMatchedPairs == current.totalPairs
 
             if (won) {
+                // The final pair gets the fanfare only - playing the match chime first made the two
+                // cues collide into noise.
                 SoundManager.playVictory(soundEnabled.value)
                 HapticManager.triggerVictory(getApplication(), hapticsEnabled.value)
 
@@ -283,18 +286,6 @@ class GameViewModel(application: Application, val levelNumber: Int) : AndroidVie
                     mistakes = current.mistakes,
                     timeLimitSec = levelConfig.timeLimitSec
                 )
-
-                viewModelScope.launch {
-                    progressRepository.unlockNextLevel(
-                        completedLevel = levelNumber,
-                        nextLevel = levelNumber + 1,
-                        stars = earnedStars,
-                        moves = newMoves,
-                        timeSec = current.timeElapsedSec
-                    )
-                    progressRepository.updateDailyStreak()
-                    progressRepository.updatePlayStats(current.mistakes == 0)
-                }
 
                 _state.value = current.copy(
                     cards = matchedCards,
@@ -308,8 +299,30 @@ class GameViewModel(application: Application, val levelNumber: Int) : AndroidVie
                     isWon = true,
                     stars = earnedStars
                 )
+
+                // Exactly one write per victory. The dialog appears immediately and the reward
+                // arrives as a state update a moment later.
+                viewModelScope.launch {
+                    val result = progressRepository.recordLevelResult(
+                        level = levelNumber,
+                        stars = earnedStars,
+                        moves = newMoves,
+                        timeSec = current.timeElapsedSec,
+                    )
+                    progressRepository.updateDailyStreak()
+                    progressRepository.updatePlayStats(current.mistakes == 0)
+                    _state.update {
+                        it.copy(
+                            coinsAwarded = result.coinsAwarded,
+                            isFirstClear = result.isFirstClear,
+                        )
+                    }
+                }
                 return
             }
+
+            SoundManager.playMatch(soundEnabled.value)
+            HapticManager.triggerMatch(getApplication(), hapticsEnabled.value)
 
             _state.value = current.copy(
                 cards = matchedCards,

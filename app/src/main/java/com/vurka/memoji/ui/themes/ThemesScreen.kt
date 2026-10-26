@@ -23,6 +23,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vurka.memoji.model.CardBackTheme
+import com.vurka.memoji.data.ThemeUnlock
 import com.vurka.memoji.ui.theme.CardBackVisuals
 import com.vurka.memoji.ui.theme.EmeraldGreen
 import com.vurka.memoji.ui.theme.RoyalBlue
@@ -35,7 +36,7 @@ fun ThemesScreen(
     viewModel: LevelSelectionViewModel,
     onBackPressed: () -> Unit,
 ) {
-    val highestUnlocked by viewModel.highestUnlockedLevel.collectAsState()
+    val levelsCompleted by viewModel.totalLevelsCompleted.collectAsState()
     val selectedThemeId by viewModel.selectedThemeId.collectAsState()
     val isDark = MaterialTheme.colorScheme.background.red < 0.5f
 
@@ -62,10 +63,22 @@ fun ThemesScreen(
         ) {
             items(viewModel.themes) { theme ->
                 val isPurchased by viewModel.isThemePurchased(theme.id).collectAsState(initial = false)
-                val isUnlocked = (highestUnlocked >= theme.milestoneLevel) || isPurchased
+                // Unlocking is driven by real progress or a coin purchase - never by the fact that
+                // every level is selectable.
+                val isUnlocked = ThemeUnlock.isUnlocked(
+                    purchased = isPurchased,
+                    completedLevels = levelsCompleted,
+                    milestoneLevels = theme.milestoneLevel,
+                )
                 val isSelected = selectedThemeId == theme.id
 
-                ThemeCard(theme, isUnlocked, isSelected, isDark) {
+                ThemeCard(
+                    theme = theme,
+                    isUnlocked = isUnlocked,
+                    isSelected = isSelected,
+                    isDark = isDark,
+                    lockedProgress = if (!isUnlocked) "$levelsCompleted/${theme.milestoneLevel} levels" else null
+                ) {
                     if (isUnlocked) viewModel.setSelectedThemeId(theme.id)
                 }
             }
@@ -74,7 +87,14 @@ fun ThemesScreen(
 }
 
 @Composable
-fun ThemeCard(theme: CardBackTheme, isUnlocked: Boolean, isSelected: Boolean, isDark: Boolean, onClick: () -> Unit) {
+fun ThemeCard(
+    theme: CardBackTheme,
+    isUnlocked: Boolean,
+    isSelected: Boolean,
+    isDark: Boolean,
+    lockedProgress: String? = null,
+    onClick: () -> Unit,
+) {
     val cardBg = if (isUnlocked) {
         if (isSelected) (if (isDark) Color(0xFF2A2450) else Color(0xFFDBEAFE)) else (if (isDark) Color(0xFF1C2541) else Color.White)
     } else {
@@ -133,6 +153,14 @@ fun ThemeCard(theme: CardBackTheme, isUnlocked: Boolean, isSelected: Boolean, is
                         fontSize = 13.sp,
                         color = Color(0xFF94A3B8)
                     )
+                    if (lockedProgress != null) {
+                        Text(
+                            text = "🔒 $lockedProgress",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFF94A3B8)
+                        )
+                    }
                 }
             }
 

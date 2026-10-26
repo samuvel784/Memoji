@@ -163,9 +163,7 @@ class MainActivity : ComponentActivity() {
                             },
                             onLevelCompleted = { completedLevel, _, _, _ ->
                                 navController.popBackStack()
-                                if (completedLevel < LevelCatalog.TOTAL_LEVELS) {
-                                    navController.navigate(Screen.Game.createRoute(completedLevel + 1))
-                                }
+                                // Don't auto-advance to next level; let player choose freely
                             }
                         )
                     }

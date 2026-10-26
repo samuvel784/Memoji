@@ -1,6 +1,5 @@
 package com.vurka.memoji.ui.levels
 
-import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
@@ -14,22 +13,26 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.BiasAbsoluteAlignment
 import androidx.compose.ui.Modifier
@@ -52,6 +55,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -123,24 +127,32 @@ fun LevelSelectScreen(
     onLevelSelected: (Int) -> Unit,
     onBackPressed: () -> Unit
 ) {
-    val highest by viewModel.highestUnlockedLevel.collectAsStateWithLifecycle()
+    val lastPlayed by viewModel.lastPlayedLevel.collectAsStateWithLifecycle()
     val starsMap by viewModel.starsMap.collectAsStateWithLifecycle()
     val totalStars by viewModel.totalStars.collectAsStateWithLifecycle()
     val zen by viewModel.isZenMode.collectAsStateWithLifecycle()
 
     val rows = mapRows
     val worlds = remember { LevelCatalog.getWorlds() }
-    val currentIndex = remember(highest) {
-        rows.indexOfFirst { it is MapRow.Node && it.config.levelNumber == highest }.coerceAtLeast(0)
+    // 0 means "not loaded yet"; the map waits for a real value before positioning itself.
+    val displayLevel = if (lastPlayed in 1..LevelCatalog.TOTAL_LEVELS) lastPlayed else 1
+    val currentIndex = remember(displayLevel) {
+        rows.indexOfFirst { it is MapRow.Node && it.config.levelNumber == displayLevel }.coerceAtLeast(0)
     }
 
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
-    var selectedLevel by remember { mutableIntStateOf(0) }
+    var selectedLevel by rememberSaveable { mutableIntStateOf(0) }
+    var showJumpDialog by rememberSaveable { mutableStateOf(false) }
 
-    // Land on the player's current level, a few rows up from the bottom edge.
-    LaunchedEffect(currentIndex) {
-        listState.scrollToItem((currentIndex - 3).coerceAtLeast(0))
+    // Position the map on the last played level exactly once per visit. Returning from a game must
+    // keep whatever position the player had scrolled to, not yank them back.
+    var initialScrollDone by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(displayLevel) {
+        if (!initialScrollDone && lastPlayed in 1..LevelCatalog.TOTAL_LEVELS) {
+            initialScrollDone = true
+            listState.scrollToItem((currentIndex - 3).coerceAtLeast(0))
+        }
     }
 
     // The world that is roughly in the middle of the screen drives the background and the title chip.
@@ -150,6 +162,16 @@ fun LevelSelectScreen(
     val world = worlds[(visibleWorldIdx - 1).coerceIn(0, worlds.lastIndex)]
     val showJump by remember(currentIndex) {
         derivedStateOf { abs(listState.firstVisibleItemIndex + 4 - currentIndex) > 7 }
+    }
+
+    fun scrollToLevel(level: Int) {
+        val target = rows.indexOfFirst { it is MapRow.Node && it.config.levelNumber == level }
+        if (target >= 0) scope.launch { listState.animateScrollToItem((target - 3).coerceAtLeast(0)) }
+    }
+
+    fun scrollToWorld(worldIndex: Int) {
+        val target = rows.indexOfFirst { it is MapRow.Banner && it.world.index == worldIndex }
+        if (target >= 0) scope.launch { listState.animateScrollToItem((target - 1).coerceAtLeast(0)) }
     }
 
     val deepNavy = Color(0xFF0B132B)
@@ -175,7 +197,7 @@ fun LevelSelectScreen(
             reverseLayout = true,
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(
-                top = insets.calculateTopPadding() + 112.dp,
+                top = insets.calculateTopPadding() + 156.dp,
                 bottom = insets.calculateBottomPadding() + 24.dp
             )
         ) {
@@ -199,7 +221,6 @@ fun LevelSelectScreen(
                 when (row) {
                     is MapRow.Banner -> WorldBannerRow(
                         world = row.world,
-                        reachable = firstLevelOf(row.world) <= highest,
                         isFirst = index == 0,
                         starsMap = starsMap
                     )
@@ -211,13 +232,12 @@ fun LevelSelectScreen(
                             level = row.config,
                             world = row.world,
                             stars = stars,
-                            unlocked = level <= highest,
-                            isCurrent = level == highest && stars == 0,
+                            isCurrent = level == displayLevel,
                             bias = rowBiases[index],
                             biasPrev = rowBiases[(index - 1).coerceAtLeast(0)],
                             biasNext = rowBiases[(index + 1).coerceAtMost(rows.lastIndex)],
-                            prevDone = level <= highest,
-                            nextDone = level + 1 <= highest || (level == LevelCatalog.TOTAL_LEVELS && stars > 0),
+                            prevDone = (starsMap[level - 1] ?: 0) > 0 || stars > 0 || level == 1,
+                            nextDone = (starsMap[level + 1] ?: 0) > 0,
                             onClick = { selectedLevel = level }
                         )
                     }
@@ -233,10 +253,10 @@ fun LevelSelectScreen(
                 .align(Alignment.TopCenter)
                 .fillMaxWidth()
                 .background(
-                    Brush.verticalGradient(listOf(deepNavy.copy(alpha = 0.95f), deepNavy.copy(alpha = 0.7f), Color.Transparent))
+                    Brush.verticalGradient(listOf(deepNavy.copy(alpha = 0.97f), deepNavy.copy(alpha = 0.8f), Color.Transparent))
                 )
                 .statusBarsPadding()
-                .padding(bottom = 18.dp)
+                .padding(bottom = 10.dp)
         ) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onBackPressed, modifier = Modifier.testTag("back_button")) {
@@ -245,7 +265,7 @@ fun LevelSelectScreen(
                 Column(Modifier.weight(1f)) {
                     Text("World Map", fontWeight = FontWeight.ExtraBold, color = Color.White, fontSize = 20.sp)
                     Text(
-                        "Level $highest / ${LevelCatalog.TOTAL_LEVELS}",
+                        "All ${LevelCatalog.TOTAL_LEVELS} levels available • Last played: $displayLevel",
                         fontSize = 12.sp,
                         color = Color(0xFFCBD5E1)
                     )
@@ -260,22 +280,31 @@ fun LevelSelectScreen(
                         .padding(horizontal = 12.dp, vertical = 6.dp)
                 )
             }
-            AnimatedContent(
-                targetState = world,
-                transitionSpec = { fadeIn(tween(250)) togetherWith fadeOut(tween(250)) },
-                modifier = Modifier.align(Alignment.CenterHorizontally),
-                label = "worldChip"
-            ) { w ->
-                Row(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(50))
-                        .background(Brush.horizontalGradient(listOf(Color(w.colorA), Color(w.colorB))))
-                        .padding(horizontal = 14.dp, vertical = 5.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(w.emoji, fontSize = 15.sp)
-                    Spacer(Modifier.width(6.dp))
-                    Text("World ${w.index} • ${w.name}", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+
+            // World selector: tap any world to fly straight to its banner.
+            LazyRow(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("world_selector"),
+                contentPadding = PaddingValues(horizontal = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                item(key = "jump") {
+                    WorldChip(
+                        emoji = "🔎",
+                        label = "Jump",
+                        selected = false,
+                        accent = Color(0xFFE11D48)
+                    ) { showJumpDialog = true }
+                }
+                itemsIndexed(worlds, key = { _, w -> "w${w.index}" }) { _, w ->
+                    WorldChip(
+                        emoji = w.emoji,
+                        label = "${w.index}",
+                        selected = w.index == world.index,
+                        accent = Color(w.colorA)
+                    ) { scrollToWorld(w.index) }
                 }
             }
         }
@@ -302,25 +331,155 @@ fun LevelSelectScreen(
                     .padding(horizontal = 16.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("📍 Level $highest", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp)
+                Text("📍 Level $displayLevel", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp)
             }
         }
     }
 
     if (selectedLevel > 0) {
         val config = LevelCatalog.getLevel(selectedLevel)
+        val bestMoves by remember(selectedLevel) { viewModel.getBestMoves(selectedLevel) }
+            .collectAsStateWithLifecycle(initialValue = 0)
+        val bestTime by remember(selectedLevel) { viewModel.getBestTime(selectedLevel) }
+            .collectAsStateWithLifecycle(initialValue = 0)
         LevelPreviewDialog(
             config = config,
             world = LevelCatalog.getWorldInfo(selectedLevel),
             stars = starsMap[selectedLevel] ?: 0,
-            locked = selectedLevel > highest,
+            bestMoves = bestMoves,
+            bestTime = bestTime,
             zen = zen,
-            onPlay = {
-                val l = selectedLevel
-                selectedLevel = 0
-                onLevelSelected(l)
-            },
+            onPlay = { onLevelSelected(selectedLevel) },
             onDismiss = { selectedLevel = 0 }
+        )
+    }
+
+    if (showJumpDialog) {
+        JumpToLevelDialog(
+            currentLevel = displayLevel,
+            onGo = { level ->
+                showJumpDialog = false
+                scrollToLevel(level)
+                selectedLevel = level
+            },
+            onDismiss = { showJumpDialog = false }
+        )
+    }
+}
+
+/**
+ * Numeric jump dialog. Accepts 1..1000 only; invalid input shows an inline error instead of
+ * loading an unrelated level.
+ */
+@Composable
+private fun JumpToLevelDialog(
+    currentLevel: Int,
+    onGo: (Int) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var text by rememberSaveable { mutableStateOf("") }
+    var error by rememberSaveable { mutableStateOf<String?>(null) }
+
+    fun submit(raw: String? = null) {
+        val value = (raw ?: text).trim().toIntOrNull()
+        if (value == null) {
+            error = "Enter a level number"
+            return
+        }
+        if (value !in 1..LevelCatalog.TOTAL_LEVELS) {
+            error = "Levels go from 1 to ${LevelCatalog.TOTAL_LEVELS}"
+            return
+        }
+        error = null
+        onGo(value)
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = MaterialTheme.colorScheme.surface,
+        title = { Text("Jump to level", fontWeight = FontWeight.ExtraBold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("Every level from 1 to ${LevelCatalog.TOTAL_LEVELS} is open.", fontSize = 13.sp)
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = {
+                        text = it.filter { ch -> ch.isDigit() }.take(4)
+                        error = null
+                    },
+                    label = { Text("Level number") },
+                    singleLine = true,
+                    isError = error != null,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("jump_level_field")
+                )
+                if (error != null) {
+                    Text(error!!, color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
+                }
+                Text("Quick jumps", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                Row(
+                    modifier = Modifier.horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    listOf(1, 250, 500, 750, LevelCatalog.TOTAL_LEVELS).forEach { level ->
+                        AssistChip(
+                            onClick = { onGo(level) },
+                            label = { Text("$level", fontSize = 12.sp) },
+                            modifier = Modifier.testTag("jump_quick_$level")
+                        )
+                    }
+                    AssistChip(
+                        onClick = { submit(currentLevel.toString()) },
+                        label = { Text("Last played ($currentLevel)", fontSize = 12.sp) }
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { submit() },
+                modifier = Modifier.testTag("jump_go_button"),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE11D48))
+            ) {
+                Text("Go", color = Color.White, fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        }
+    )
+}
+
+@Composable
+private fun WorldChip(
+    emoji: String,
+    label: String,
+    selected: Boolean,
+    accent: Color,
+    onClick: () -> Unit,
+) {
+    val bg = if (selected) accent else Color.White.copy(alpha = 0.10f)
+    Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(50))
+            .background(bg)
+            .border(
+                BorderStroke(1.dp, if (selected) Color.White else Color.White.copy(alpha = 0.25f)),
+                RoundedCornerShape(50)
+            )
+            .clickable(onClick = onClick)
+            .padding(horizontal = 10.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(emoji, fontSize = 13.sp)
+        Spacer(Modifier.width(4.dp))
+        Text(
+            label,
+            color = Color.White,
+            fontSize = 12.sp,
+            fontWeight = if (selected) FontWeight.ExtraBold else FontWeight.SemiBold
         )
     }
 }
@@ -370,7 +529,6 @@ private fun MapNodeRow(
     level: LevelConfig,
     world: WorldInfo,
     stars: Int,
-    unlocked: Boolean,
     isCurrent: Boolean,
     bias: Float,
     biasPrev: Float,
@@ -426,20 +584,18 @@ private fun MapNodeRow(
             if (isCurrent) PulseRing(shape = shape, color = Gold)
 
             val fill = when {
-                !unlocked -> Brush.linearGradient(listOf(Color(0xFF64748B), Color(0xFF334155)))
                 stars > 0 -> Brush.linearGradient(listOf(colorA, colorB))
                 else -> Brush.linearGradient(listOf(colorA.copy(alpha = 0.75f), colorB.copy(alpha = 0.75f)))
             }
             val borderColor = when {
                 isCurrent -> Color.White
-                boss && unlocked -> Gold
-                unlocked -> Color.White.copy(alpha = 0.7f)
-                else -> Color.White.copy(alpha = 0.25f)
+                boss -> Gold
+                else -> Color.White.copy(alpha = 0.7f)
             }
             val description = when {
-                !unlocked -> "Level $number, locked"
-                stars > 0 -> "Level $number, $stars stars"
-                else -> "Level $number, not completed"
+                stars > 0 -> "Level $number, ${world.name}, $stars of 3 stars"
+                boss -> "Level $number, ${world.name}, boss level, not completed"
+                else -> "Level $number, ${world.name}, not completed"
             }
 
             Box(
@@ -447,7 +603,7 @@ private fun MapNodeRow(
                     .fillMaxSize()
                     .then(if (isCurrent) Modifier.pulse(1f, 1.08f, 800) else Modifier)
                     .pressBounce()
-                    .shadow(if (unlocked) 8.dp else 2.dp, shape)
+                    .shadow(8.dp, shape)
                     .clip(shape)
                     .background(fill)
                     .border(BorderStroke(if (isCurrent) 3.dp else 2.dp, borderColor), shape)
@@ -457,16 +613,16 @@ private fun MapNodeRow(
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    if (!unlocked) {
-                        Text("🔒", fontSize = 18.sp)
-                        Text("$number", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.White.copy(alpha = 0.7f))
-                    } else {
-                        Text("$number", fontSize = if (boss) 20.sp else 17.sp, fontWeight = FontWeight.ExtraBold, color = Color.White)
-                        if (stars > 0) {
-                            Text("★".repeat(stars) + "☆".repeat(3 - stars), fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Gold)
-                        } else if (boss) {
-                            Text("BOSS", fontSize = 9.sp, fontWeight = FontWeight.ExtraBold, color = Gold)
-                        }
+                    Text("$number", fontSize = if (boss) 20.sp else 17.sp, fontWeight = FontWeight.ExtraBold, color = Color.White)
+                    if (stars > 0) {
+                        Text(
+                            "★".repeat(stars) + "☆".repeat((3 - stars).coerceAtLeast(0)),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Gold
+                        )
+                    } else if (boss) {
+                        Text("BOSS", fontSize = 9.sp, fontWeight = FontWeight.ExtraBold, color = Gold)
                     }
                 }
             }
@@ -511,7 +667,7 @@ private fun PulseRing(shape: Shape, color: Color) {
 }
 
 @Composable
-private fun WorldBannerRow(world: WorldInfo, reachable: Boolean, isFirst: Boolean, starsMap: Map<Int, Int>) {
+private fun WorldBannerRow(world: WorldInfo, isFirst: Boolean, starsMap: Map<Int, Int>) {
     val first = firstLevelOf(world)
     val last = first + LevelCatalog.LEVELS_PER_WORLD - 1
     val earned = remember(world.index, starsMap) { (first..last).sumOf { starsMap[it] ?: 0 } }
@@ -529,21 +685,19 @@ private fun WorldBannerRow(world: WorldInfo, reachable: Boolean, isFirst: Boolea
                 moveTo(cx, size.height / 2f)
                 lineTo(cx, 0f)
             }
-            drawTrail(path, reachable, world)
+            drawTrail(path, true, world)
             if (!isFirst) {
                 val down = Path().apply {
                     moveTo(cx, size.height / 2f)
                     lineTo(cx, size.height)
                 }
-                drawTrail(down, reachable, world)
+                drawTrail(down, true, world)
             }
         }
-        val alpha = if (reachable) 1f else 0.55f
         Row(
             modifier = Modifier
                 .padding(horizontal = 20.dp)
                 .fillMaxWidth()
-                .graphicsLayer { this.alpha = alpha }
                 .shadow(10.dp, RoundedCornerShape(24.dp))
                 .clip(RoundedCornerShape(24.dp))
                 .background(Brush.horizontalGradient(listOf(Color(world.colorA), Color(world.colorB))))
@@ -555,7 +709,7 @@ private fun WorldBannerRow(world: WorldInfo, reachable: Boolean, isFirst: Boolea
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text(
-                    "World ${world.index}${if (reachable) "" else "  🔒"}",
+                    "World ${world.index}",
                     color = Color.White.copy(alpha = 0.9f),
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold
@@ -613,7 +767,8 @@ private fun LevelPreviewDialog(
     config: LevelConfig,
     world: WorldInfo,
     stars: Int,
-    locked: Boolean,
+    bestMoves: Int,
+    bestTime: Int,
     zen: Boolean,
     onPlay: () -> Unit,
     onDismiss: () -> Unit
@@ -636,54 +791,61 @@ private fun LevelPreviewDialog(
             }
         },
         text = {
-            if (locked) {
-                Text("🔒 Finish level ${config.levelNumber - 1} to unlock this one.")
-            } else {
-                Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                    Text(
-                        if (stars > 0) "★".repeat(stars) + "☆".repeat(3 - stars) else "☆☆☆",
-                        color = Gold,
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    InfoLine("🃏", "${config.pairCount} pairs (${config.pairCount * 2} cards)")
-                    InfoLine("👀", "${config.previewTimeSec}s to memorise")
-                    if (zen) {
-                        InfoLine("🧘", "Zen mode: no timer, move limit or shuffles")
-                    } else {
-                        InfoLine("⏳", if (config.timeLimitSec > 0) "${config.timeLimitSec}s time limit" else "No time limit")
-                        InfoLine("👟", if (config.moveLimit > 0) "${config.moveLimit} moves max" else "No move limit")
-                        if (config.shuffleIntervalSec > 0) InfoLine("🔀", "Cards reshuffle every ${config.shuffleIntervalSec}s")
-                        if (config.autoHideMs > 0) InfoLine("⚡", "A lone card hides after ${"%.1f".format(config.autoHideMs / 1000f)}s")
+            Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                Text(
+                    if (stars > 0) "★".repeat(stars) + "☆".repeat((3 - stars).coerceAtLeast(0)) else "☆☆☆",
+                    color = Gold,
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                if (stars > 0) {
+                    val best = buildList {
+                        if (bestTime > 0) add("⏱ ${formatTime(bestTime)}")
+                        if (bestMoves > 0) add("👟 $bestMoves moves")
                     }
-                    InfoLine(
-                        "💡",
-                        when {
-                            zen || config.maxHints < 0 -> "Unlimited hints"
-                            config.maxHints == 0 -> "No hints"
-                            else -> "${config.maxHints} hints"
-                        }
-                    )
+                    if (best.isNotEmpty()) {
+                        InfoLine("🏅", "Personal best: ${best.joinToString(" • ")}")
+                    }
                 }
+                InfoLine("🃏", "${config.pairCount} pairs (${config.pairCount * 2} cards)")
+                InfoLine("👀", "${config.previewTimeSec}s to memorise")
+                if (zen) {
+                    InfoLine("🧘", "Zen mode: no timer, move limit or shuffles")
+                } else {
+                    InfoLine("⏳", if (config.timeLimitSec > 0) "${config.timeLimitSec}s time limit" else "No time limit")
+                    InfoLine("👟", if (config.moveLimit > 0) "${config.moveLimit} moves max" else "No move limit")
+                    if (config.shuffleIntervalSec > 0) InfoLine("🔀", "Cards reshuffle every ${config.shuffleIntervalSec}s")
+                    if (config.autoHideMs > 0) InfoLine("⚡", "A lone card hides after ${"%.1f".format(config.autoHideMs / 1000f)}s")
+                }
+                InfoLine(
+                    "💡",
+                    when {
+                        zen || config.maxHints < 0 -> "Unlimited hints"
+                        config.maxHints == 0 -> "No hints"
+                        else -> "${config.maxHints} hints"
+                    }
+                )
             }
         },
         confirmButton = {
-            if (!locked) {
-                Button(
-                    onClick = onPlay,
-                    modifier = Modifier.testTag("play_level_button"),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE11D48))
-                ) {
-                    Text("Play", color = Color.White, fontWeight = FontWeight.Bold)
-                }
-            } else {
-                TextButton(onClick = onDismiss) { Text("OK") }
+            Button(
+                onClick = onPlay,
+                modifier = Modifier.testTag("play_level_button"),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE11D48))
+            ) {
+                Text("Play", color = Color.White, fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {
-            if (!locked) TextButton(onClick = onDismiss) { Text("Cancel") }
+            TextButton(onClick = onDismiss) { Text("Cancel") }
         }
     )
+}
+
+/** mm:ss for the personal-best line. */
+private fun formatTime(totalSec: Int): String {
+    val safe = totalSec.coerceAtLeast(0)
+    return "%d:%02d".format(safe / 60, safe % 60)
 }
 
 @Composable
