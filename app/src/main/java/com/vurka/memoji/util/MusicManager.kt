@@ -57,8 +57,9 @@ object MusicManager {
     private var focusGranted = false
     private var released = false
 
+    // Silent until MainActivity applies the persisted sliders; see SoundManager for the reason.
     @Volatile
-    private var masterVolume = AudioMix.DEFAULT_MASTER
+    private var masterVolume = 0f
 
     @Volatile
     private var musicVolume = AudioMix.DEFAULT_MUSIC

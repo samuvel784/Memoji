@@ -73,8 +73,10 @@ object SoundManager {
     @Volatile
     private var generation = 0
 
+    // Deliberately silent until MainActivity applies the persisted sliders. This guarantees that a
+    // player who muted the app never hears a cue during the first frames after a cold start.
     @Volatile
-    private var masterVolume = AudioMix.DEFAULT_MASTER
+    private var masterVolume = 0f
 
     @Volatile
     private var effectsVolume = AudioMix.DEFAULT_EFFECTS
