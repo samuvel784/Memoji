@@ -14,8 +14,8 @@ android {
     applicationId = "com.vurka.memoji"
     minSdk = 24
     targetSdk = 37
-    versionCode = 2
-    versionName = "2.0"
+    versionCode = 3
+    versionName = "2.1"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
@@ -93,11 +93,14 @@ android {
 val verifyReleaseSigning = tasks.register("verifyReleaseSigning") {
   group = "verification"
   description = "Aborts unless a real upload keystore and its passwords are configured."
+  // Captured as plain values so this action stays compatible with Gradle's configuration cache.
+  val defaultKeystore = File(rootDir, "my-upload-key.jks").absolutePath
   doFirst {
+    val keystorePath = System.getenv("KEYSTORE_PATH")?.takeIf { it.isNotBlank() } ?: defaultKeystore
     val storePass = System.getenv("STORE_PASSWORD")
     val keyPass = System.getenv("KEY_PASSWORD")
     val missing = buildList {
-      if (!releaseKeystoreFile.exists()) add("keystore file (${releaseKeystoreFile.absolutePath})")
+      if (!File(keystorePath).exists()) add("keystore file ($keystorePath)")
       if (storePass.isNullOrBlank()) add("STORE_PASSWORD")
       if (keyPass.isNullOrBlank()) add("KEY_PASSWORD")
     }

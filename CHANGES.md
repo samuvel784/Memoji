@@ -1,5 +1,47 @@
 # Memoji v2.0 – what changed
 
+## v2.1 – release pass
+
+### Every level is open, progress stays honest
+* All 1,000 levels are selectable from the first launch, in any order. Level *availability* is no
+  longer tied to progress at all.
+* Removed `highestUnlockedLevel`. Real progress is derived from recorded stars:
+  `completedLevels`, `totalLevelsCompleted`, `highestCompletedLevel`.
+* Cosmetic themes still require real completions or a coin purchase (`ThemeUnlock`); having every
+  level open does not unlock them. Locked cards show "🔒 12/50 levels".
+* Reset now says exactly what it clears, keeps settings, and confirms when done. Levels stay open.
+* The map has a validated **Jump to level** dialog (1–1000), a 20-world selector, and remembers your
+  scroll position when you come back from a game.
+
+### Rewards that make sense
+* First clear pays **15 + 5 per star** coins; replays pay nothing, so level 1 cannot be farmed.
+  Stars and personal bests only ever improve.
+* Victory screen offers Next, Replay, World Map and Home, shows personal bests and first-clear coins,
+  and turns into "Summit reached" at level 1000.
+* Losses now count toward games played and the daily streak, and tell you whether time or moves ran out.
+
+### Sound and accessibility
+* Replaced the DTMF keypad tones with 12 synthesised cues (tap, flip, match, mismatch, hint, shuffle,
+  combo, coin, achievement, victory, defeat, pause). They are rendered deterministically to WAVs in
+  the cache and played with `SoundPool` — no third-party audio assets, no downloads, no permissions.
+* Combo milestones get a rising accent instead of stacking on the match chime; the victory fanfare
+  replaces the final match chime.
+* Settings has a **Preview Sounds** row.
+* Face-down cards announce "Hidden card" — the emoji is never leaked to TalkBack. Card glyphs are
+  marked decorative, and matched pairs announce as matched.
+* Decorative motion (drifting backdrop, confetti, screen shake, popping cards, pulsing nodes) is
+  skipped when the system's "Remove animations" setting is on.
+* Shared `AppTopBar` and design tokens (`Spacing`, `Radii`, `Chrome`) replace repeated literals.
+
+### Docs and build
+* `RELEASE.md` documents signing, verification and the remaining release blockers.
+* `metadata.json` / `.env.example` no longer claim a Gemini capability the app does not have.
+* Release builds fail loudly when the upload key is missing; they never fall back to `debug.keystore`.
+
+---
+
+# Memoji v2.0 – what changed
+
 ## Harder as you climb (`LevelCatalog`, `GameViewModel`, `MemoryGameEngine`)
 | Mechanic | Early (1-20) | Mid (100-300) | Late (600-1000) |
 |---|---|---|---|
@@ -30,7 +72,7 @@
 
 ## Map-style levels (`LevelSelectScreen`)
 * Winding S-curve path that climbs upward (like Candy Crush): 20 world banners, 1000 nodes, summit at the top.
-* Locked nodes (previously every level could be opened), pulsing "current" node with a hopping wizard marker, stars on completed nodes, gold trail on the part you've travelled, dashed trail ahead.
+* Pulsing "current" node with a hopping wizard marker, stars on completed nodes, gold trail on the part you've travelled, dashed trail ahead. (v2.1 removed the lock state: every node is playable.)
 * Boss nodes (square, crown). Scenery emoji per world. Background colour cross-fades as you scroll between worlds.
 * World chip that updates while scrolling, "📍 Level N" jump button, auto-scroll to your level.
 * Tap a node -> level preview (pairs, time, moves, shuffles, hints, best stars) -> Play.
