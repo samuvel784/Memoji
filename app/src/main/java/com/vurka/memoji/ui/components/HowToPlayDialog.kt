@@ -93,7 +93,7 @@ fun HowToPlayBottomSheet(
             InstructionCard(
                 icon = "🎨",
                 title = "Card-Back Themes",
-                description = "Unlock and equip new card backs as you level up. Preview them live in the Themes menu.",
+                description = "Complete levels or spend coins to unlock card backs. Preview them live in the Themes menu.",
                 isDark = isDark
             )
 

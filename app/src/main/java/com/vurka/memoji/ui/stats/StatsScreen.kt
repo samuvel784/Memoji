@@ -17,6 +17,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vurka.memoji.data.LevelCatalog
+import com.vurka.memoji.ui.components.AppTopBar
 import com.vurka.memoji.ui.theme.RoyalBlue
 import com.vurka.memoji.ui.theme.VividRed
 import com.vurka.memoji.viewmodel.LevelSelectionViewModel
@@ -50,14 +51,9 @@ fun StatsScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Player Statistics", fontWeight = FontWeight.Bold, color = Color.White) },
-                navigationIcon = {
-                    IconButton(onClick = onBackPressed, modifier = Modifier.testTag("back_button")) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF1C2541))
+            AppTopBar(
+                title = "Player Statistics",
+                onBack = onBackPressed
             )
         },
         containerColor = MaterialTheme.colorScheme.background
@@ -80,7 +76,7 @@ fun StatsScreen(
                 colorB = worldInfo.colorB,
                 isDark = isDark
             )
-            StatCard(title = "Levels Available", value = "${LevelCatalog.TOTAL_LEVELS} • All unlocked", icon = "🚀", isDark = isDark, accentColor = VividRed)
+            StatCard(title = "Levels Available", value = "${LevelCatalog.TOTAL_LEVELS} • All playable", icon = "🚀", isDark = isDark, accentColor = VividRed)
             StatCard(title = "Levels Completed", value = "$levelsCompleted", icon = "🏆", isDark = isDark, accentColor = RoyalBlue)
             StatCard(title = "Total Stars", value = "$totalStars / ${LevelCatalog.TOTAL_LEVELS * 3}", icon = "⭐", isDark = isDark, accentColor = VividRed)
             StatCard(title = "Completion Rate", value = "${(levelsCompleted * 100 / LevelCatalog.TOTAL_LEVELS).coerceIn(0, 100)}%", icon = "📈", isDark = isDark, accentColor = RoyalBlue)

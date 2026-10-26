@@ -19,6 +19,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.sp
+import com.vurka.memoji.ui.theme.LocalReduceMotion
 import kotlinx.coroutines.delay
 import kotlin.math.PI
 import kotlin.math.sin
@@ -36,6 +37,12 @@ fun AnimatedBackdrop(
     count: Int = 14,
     alpha: Float = 0.16f
 ) {
+    val reduceMotion = LocalReduceMotion.current
+    if (reduceMotion) {
+        // Static gradient only: nothing moves when the system asks for reduced motion.
+        Canvas(modifier.fillMaxSize()) { drawRect(brush) }
+        return
+    }
     val measurer = rememberTextMeasurer()
     val glyphs = remember(emojis) {
         emojis.map { measurer.measure(it, TextStyle(fontSize = 34.sp)) }
@@ -69,6 +76,7 @@ fun AnimatedBackdrop(
 
 /** Springs the element in (scale + fade) after [delayMs]. */
 fun Modifier.popIn(delayMs: Int = 0): Modifier = composed {
+    if (LocalReduceMotion.current) return@composed this
     val a = remember { Animatable(0f) }
     LaunchedEffect(Unit) {
         delay(delayMs.toLong())
@@ -82,6 +90,7 @@ fun Modifier.popIn(delayMs: Int = 0): Modifier = composed {
 
 /** Gentle floating up/down loop. */
 fun Modifier.bob(amplitudePx: Float = 10f, periodMs: Int = 2400, phase: Float = 0f): Modifier = composed {
+    if (LocalReduceMotion.current) return@composed this
     val v = rememberInfiniteTransition(label = "bob").animateFloat(
         initialValue = 0f, targetValue = 1f,
         animationSpec = infiniteRepeatable(tween(periodMs, easing = LinearEasing)),
@@ -92,6 +101,7 @@ fun Modifier.bob(amplitudePx: Float = 10f, periodMs: Int = 2400, phase: Float = 
 
 /** Soft heartbeat pulse for primary actions. */
 fun Modifier.pulse(from: Float = 1f, to: Float = 1.05f, periodMs: Int = 1100): Modifier = composed {
+    if (LocalReduceMotion.current) return@composed this
     val v = rememberInfiniteTransition(label = "pulse").animateFloat(
         initialValue = from, targetValue = to,
         animationSpec = infiniteRepeatable(tween(periodMs, easing = FastOutSlowInEasing), RepeatMode.Reverse),
@@ -102,6 +112,7 @@ fun Modifier.pulse(from: Float = 1f, to: Float = 1.05f, periodMs: Int = 1100): M
 
 /** Squishes while pressed, springs back on release. Doesn't consume the gesture. */
 fun Modifier.pressBounce(): Modifier = composed {
+    if (LocalReduceMotion.current) return@composed this
     var pressed by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
         targetValue = if (pressed) 0.9f else 1f,

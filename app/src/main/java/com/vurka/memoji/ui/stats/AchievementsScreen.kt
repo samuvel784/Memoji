@@ -19,6 +19,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.vurka.memoji.ui.components.AppTopBar
 import com.vurka.memoji.ui.theme.EmeraldGreen
 import com.vurka.memoji.ui.theme.GoldStar
 import com.vurka.memoji.ui.theme.RoyalBlue
@@ -42,7 +43,7 @@ fun AchievementsScreen(
     onBackPressed: () -> Unit,
 ) {
     val coins by viewModel.coins.collectAsState()
-    val starsMap by viewModel.starsMap.collectAsState()
+    val totalLevelsCompleted by viewModel.totalLevelsCompleted.collectAsState()
     val totalCardFlips by viewModel.totalCardFlips.collectAsState()
     val animalCardFlips by viewModel.animalCardFlips.collectAsState()
     val dailyStreak by viewModel.dailyStreak.collectAsState()
@@ -50,7 +51,7 @@ fun AchievementsScreen(
     val soundEnabled by viewModel.soundEnabled.collectAsState()
     val isDark = MaterialTheme.colorScheme.background.red < 0.5f
 
-    val levelsCompleted = starsMap.count { it.value > 0 }
+    val levelsCompleted = totalLevelsCompleted
 
     val tasks = listOf(
         RewardTask("complete_2", "Novice Explorer", "Complete 2 levels", "🌟", levelsCompleted, 2, 50),
@@ -65,28 +66,19 @@ fun AchievementsScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Rewards & Quests", fontWeight = FontWeight.Bold, color = Color.White) },
-                navigationIcon = {
-                    IconButton(onClick = onBackPressed, modifier = Modifier.testTag("back_button")) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
-                    }
-                },
-                actions = {
-                    Row(
-                        modifier = Modifier
-                            .padding(end = 16.dp)
-                            .background(Color.White.copy(alpha = 0.15f), RoundedCornerShape(50))
-                            .padding(horizontal = 12.dp, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Text("🪙", fontSize = 16.sp)
-                        Text("$coins", color = GoldStar, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp)
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF1C2541))
-            )
+            AppTopBar(title = "Rewards & Quests", onBack = onBackPressed) {
+                Row(
+                    modifier = Modifier
+                        .padding(end = 16.dp)
+                        .background(Color.White.copy(alpha = 0.15f), RoundedCornerShape(50))
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text("🪙", fontSize = 16.sp)
+                    Text("$coins", color = GoldStar, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp)
+                }
+            }
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
@@ -141,7 +133,7 @@ fun AchievementsScreen(
                     onClaim = {
                         if (isCompleted && !isClaimed) {
                             viewModel.claimReward(task.id, task.coinReward)
-                            SoundManager.playCoin(soundEnabled)
+                            SoundManager.playAchievement(soundEnabled)
                         }
                     }
                 )

@@ -15,6 +15,7 @@ data class LevelRecordResult(
     val stars: Int,
     val isFirstClear: Boolean,
     val coinsAwarded: Int,
+    val isPersonalBest: Boolean,
 )
 
 class ProgressRepository(private val context: Context) {
@@ -128,7 +129,12 @@ class ProgressRepository(private val context: Context) {
     ): LevelRecordResult {
         val safeLevel = level.coerceIn(1, LevelCatalog.TOTAL_LEVELS)
         val safeStars = stars.coerceIn(0, 3)
-        var result = LevelRecordResult(stars = safeStars, isFirstClear = false, coinsAwarded = 0)
+        var result = LevelRecordResult(
+            stars = safeStars,
+            isFirstClear = false,
+            coinsAwarded = 0,
+            isPersonalBest = false,
+        )
 
         dataStore.edit { prefs ->
             prefs[LAST_PLAYED_LEVEL_KEY] = safeLevel
@@ -136,15 +142,17 @@ class ProgressRepository(private val context: Context) {
             val sKey = starsKey(safeLevel)
             val existingStars = prefs[sKey] ?: 0
             val firstClear = existingStars <= 0
-            if (safeStars > existingStars) prefs[sKey] = safeStars
 
             val mKey = bestMovesKey(safeLevel)
             val existingMoves = prefs[mKey] ?: 0
-            if (existingMoves == 0 || moves < existingMoves) prefs[mKey] = moves
 
             val tKey = bestTimeKey(safeLevel)
             val existingTime = prefs[tKey] ?: 0
-            if (existingTime == 0 || timeSec < existingTime) prefs[tKey] = timeSec
+            val personalBest = existingTime == 0 || timeSec < existingTime
+
+            if (safeStars > existingStars) prefs[sKey] = safeStars
+            if (existingMoves == 0 || moves < existingMoves) prefs[mKey] = moves
+            if (personalBest) prefs[tKey] = timeSec
 
             val award = if (firstClear) COINS_PER_FIRST_CLEAR + COINS_PER_STAR * safeStars else 0
             if (award > 0) prefs[COINS_KEY] = (prefs[COINS_KEY] ?: 0) + award
@@ -153,6 +161,7 @@ class ProgressRepository(private val context: Context) {
                 stars = maxOf(existingStars, safeStars),
                 isFirstClear = firstClear,
                 coinsAwarded = award,
+                isPersonalBest = personalBest,
             )
         }
         return result

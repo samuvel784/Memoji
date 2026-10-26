@@ -37,6 +37,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        // Renders the deterministic sound set once, off the main thread.
+        SoundManager.init(this)
         setContent {
             val levelSelectionViewModel: LevelSelectionViewModel = viewModel()
             val themeMode by levelSelectionViewModel.themeMode.collectAsState()
@@ -158,12 +160,27 @@ class MainActivity : ComponentActivity() {
 
                         GameScreen(
                             viewModel = gameViewModel,
-                            onBackPressed = {
-                                navController.popBackStack()
+                            onBackPressed = { navController.popBackStack() },
+                            onNextLevel = { next ->
+                                // Replace the finished run so "back" never reopens a solved board.
+                                navController.navigate(Screen.Game.createRoute(next)) {
+                                    popUpTo(Screen.Game.route) { inclusive = true }
+                                }
                             },
-                            onLevelCompleted = { completedLevel, _, _, _ ->
-                                navController.popBackStack()
-                                // Don't auto-advance to next level; let player choose freely
+                            onWorldMap = {
+                                // Reuse the existing map entry when there is one, so its scroll
+                                // position and selection survive the trip through the level.
+                                val popped = navController.popBackStack(Screen.WorldMap.route, inclusive = false)
+                                if (!popped) {
+                                    navController.navigate(Screen.WorldMap.route) {
+                                        popUpTo(Screen.Home.route) { inclusive = false }
+                                    }
+                                }
+                            },
+                            onHome = {
+                                if (!navController.popBackStack(Screen.Home.route, inclusive = false)) {
+                                    navController.navigate(Screen.Home.route)
+                                }
                             }
                         )
                     }

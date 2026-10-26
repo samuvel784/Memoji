@@ -20,6 +20,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.vurka.memoji.ui.components.AppTopBar
 import com.vurka.memoji.ui.theme.CardBackVisuals
 import com.vurka.memoji.ui.theme.EmeraldGreen
 import com.vurka.memoji.ui.theme.GoldStar
@@ -80,28 +81,19 @@ fun StoreScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Item Store", fontWeight = FontWeight.Bold, color = Color.White) },
-                navigationIcon = {
-                    IconButton(onClick = onBackPressed, modifier = Modifier.testTag("back_button")) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
-                    }
-                },
-                actions = {
-                    Row(
-                        modifier = Modifier
-                            .padding(end = 16.dp)
-                            .background(Color.White.copy(alpha = 0.15f), RoundedCornerShape(50))
-                            .padding(horizontal = 12.dp, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Text("🪙", fontSize = 16.sp)
-                        Text("$coins", color = GoldStar, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp)
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF1C2541))
-            )
+            AppTopBar(title = "Item Store", onBack = onBackPressed) {
+                Row(
+                    modifier = Modifier
+                        .padding(end = 16.dp)
+                        .background(Color.White.copy(alpha = 0.15f), RoundedCornerShape(50))
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text("🪙", fontSize = 16.sp)
+                    Text("$coins", color = GoldStar, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp)
+                }
+            }
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
@@ -138,9 +130,9 @@ fun StoreScreen(
                         scope.launch {
                             val success = viewModel.buyItem(item.id, item.cost)
                             if (success) {
-                                SoundManager.playVictory(soundEnabled)
+                                SoundManager.playCoin(soundEnabled)
                             } else {
-                                SoundManager.playError(soundEnabled)
+                                SoundManager.playMismatch(soundEnabled)
                                 showNotEnoughDialog = true
                             }
                         }

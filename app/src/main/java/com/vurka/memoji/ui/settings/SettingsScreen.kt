@@ -3,6 +3,7 @@ package com.vurka.memoji.ui.settings
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -24,9 +25,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vurka.memoji.ui.components.HowToPlayBottomSheet
+import com.vurka.memoji.ui.components.AppTopBar
 import com.vurka.memoji.ui.theme.EmeraldGreen
 import com.vurka.memoji.ui.theme.RoyalBlue
 import com.vurka.memoji.ui.theme.VividRed
+import com.vurka.memoji.util.SoundManager
 import com.vurka.memoji.viewmodel.LevelSelectionViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -42,6 +45,7 @@ fun SettingsScreen(
     val isDark = MaterialTheme.colorScheme.background.red < 0.5f
 
     var showResetDialog by remember { mutableStateOf(false) }
+    var showResetDone by remember { mutableStateOf(false) }
     var showHowToPlay by remember { mutableStateOf(false) }
 
     if (showHowToPlay) {
@@ -51,13 +55,28 @@ fun SettingsScreen(
     if (showResetDialog) {
         AlertDialog(
             onDismissRequest = { showResetDialog = false },
-            title = { Text("Reset Progress?", fontWeight = FontWeight.Bold) },
-            text = { Text("This will reset all unlocked levels and stats back to Level 1. This action cannot be undone.") },
+            title = { Text("Reset game progress?", fontWeight = FontWeight.Bold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("This permanently clears:")
+                    Text("• completed levels, stars and personal bests", fontSize = 13.sp)
+                    Text("• coins, purchased card backs and claimed rewards", fontSize = 13.sp)
+                    Text("• games played, perfect games and your daily streak", fontSize = 13.sp)
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        "All ${com.vurka.memoji.data.LevelCatalog.TOTAL_LEVELS} levels stay playable. " +
+                            "Your sound, haptics, theme mode and Zen mode settings are kept.",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            },
             confirmButton = {
                 Button(
                     onClick = {
                         viewModel.resetAllProgress()
                         showResetDialog = false
+                        showResetDone = true
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = VividRed),
                     modifier = Modifier.testTag("confirm_reset_button")
@@ -76,16 +95,31 @@ fun SettingsScreen(
         )
     }
 
+    if (showResetDone) {
+        AlertDialog(
+            onDismissRequest = { showResetDone = false },
+            title = { Text("Progress reset", fontWeight = FontWeight.Bold) },
+            text = { Text("Your stats start from zero again. Every level is still open — jump back in wherever you like.") },
+            confirmButton = {
+                Button(
+                    onClick = { showResetDone = false },
+                    colors = ButtonDefaults.buttonColors(containerColor = RoyalBlue),
+                    modifier = Modifier.testTag("reset_done_button")
+                ) {
+                    Text("OK", color = Color.White)
+                }
+            },
+            containerColor = MaterialTheme.colorScheme.surface,
+            textContentColor = MaterialTheme.colorScheme.onSurface,
+            titleContentColor = MaterialTheme.colorScheme.onSurface
+        )
+    }
+
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Settings", fontWeight = FontWeight.Bold, color = Color.White) },
-                navigationIcon = {
-                    IconButton(onClick = onBackPressed, modifier = Modifier.testTag("back_button")) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF1C2541))
+            AppTopBar(
+                title = "Settings",
+                onBack = onBackPressed
             )
         },
         containerColor = MaterialTheme.colorScheme.background
@@ -130,6 +164,65 @@ fun SettingsScreen(
                         modifier = Modifier.testTag("sound_switch"),
                         colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = VividRed)
                     )
+                }
+            }
+
+            // Sound preview row: lets players hear the palette before playing.
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = cardBg),
+                border = cardBorder,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text(
+                        "Preview Sounds",
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                    Text(
+                        if (soundEnabled) "Tap to hear each cue" else "Turn sound on to preview",
+                        fontSize = 13.sp,
+                        color = Color(0xFF94A3B8)
+                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        AssistChip(
+                            onClick = { SoundManager.playFlip(true) },
+                            enabled = soundEnabled,
+                            label = { Text("Flip", fontSize = 12.sp) }
+                        )
+                        AssistChip(
+                            onClick = { SoundManager.playMatch(true) },
+                            enabled = soundEnabled,
+                            label = { Text("Match", fontSize = 12.sp) }
+                        )
+                        AssistChip(
+                            onClick = { SoundManager.playCombo(true) },
+                            enabled = soundEnabled,
+                            label = { Text("Combo", fontSize = 12.sp) }
+                        )
+                        AssistChip(
+                            onClick = { SoundManager.playCoin(true) },
+                            enabled = soundEnabled,
+                            label = { Text("Coin", fontSize = 12.sp) }
+                        )
+                        AssistChip(
+                            onClick = { SoundManager.playVictory(true) },
+                            enabled = soundEnabled,
+                            label = { Text("Victory", fontSize = 12.sp) }
+                        )
+                    }
                 }
             }
 

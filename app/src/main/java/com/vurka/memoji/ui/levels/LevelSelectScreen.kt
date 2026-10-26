@@ -69,6 +69,7 @@ import com.vurka.memoji.ui.components.AnimatedBackdrop
 import com.vurka.memoji.ui.components.bob
 import com.vurka.memoji.ui.components.pressBounce
 import com.vurka.memoji.ui.components.pulse
+import com.vurka.memoji.util.SoundManager
 import com.vurka.memoji.viewmodel.LevelSelectionViewModel
 import kotlinx.coroutines.launch
 import kotlin.math.abs
@@ -131,6 +132,7 @@ fun LevelSelectScreen(
     val starsMap by viewModel.starsMap.collectAsStateWithLifecycle()
     val totalStars by viewModel.totalStars.collectAsStateWithLifecycle()
     val zen by viewModel.isZenMode.collectAsStateWithLifecycle()
+    val soundOn by viewModel.soundEnabled.collectAsStateWithLifecycle()
 
     val rows = mapRows
     val worlds = remember { LevelCatalog.getWorlds() }
@@ -238,7 +240,10 @@ fun LevelSelectScreen(
                             biasNext = rowBiases[(index + 1).coerceAtMost(rows.lastIndex)],
                             prevDone = (starsMap[level - 1] ?: 0) > 0 || stars > 0 || level == 1,
                             nextDone = (starsMap[level + 1] ?: 0) > 0,
-                            onClick = { selectedLevel = level }
+                            onClick = {
+                                SoundManager.playTap(soundOn)
+                                selectedLevel = level
+                            }
                         )
                     }
 
@@ -349,7 +354,10 @@ fun LevelSelectScreen(
             bestMoves = bestMoves,
             bestTime = bestTime,
             zen = zen,
-            onPlay = { onLevelSelected(selectedLevel) },
+            onPlay = {
+                SoundManager.playTap(soundOn)
+                onLevelSelected(selectedLevel)
+            },
             onDismiss = { selectedLevel = 0 }
         )
     }

@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vurka.memoji.model.CardBackTheme
 import com.vurka.memoji.data.ThemeUnlock
+import com.vurka.memoji.ui.components.AppTopBar
 import com.vurka.memoji.ui.theme.CardBackVisuals
 import com.vurka.memoji.ui.theme.EmeraldGreen
 import com.vurka.memoji.ui.theme.RoyalBlue
@@ -42,14 +43,9 @@ fun ThemesScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Card-Back Themes", fontWeight = FontWeight.Bold, color = Color.White) },
-                navigationIcon = {
-                    IconButton(onClick = onBackPressed, modifier = Modifier.testTag("back_button")) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF1C2541))
+            AppTopBar(
+                title = "Card-Back Themes",
+                onBack = onBackPressed
             )
         },
         containerColor = MaterialTheme.colorScheme.background

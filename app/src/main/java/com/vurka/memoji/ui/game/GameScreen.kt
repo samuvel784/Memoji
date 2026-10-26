@@ -21,8 +21,10 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Lightbulb
@@ -43,6 +45,7 @@ import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
@@ -51,6 +54,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -61,30 +65,37 @@ import com.vurka.memoji.model.MemoryCard
 import com.vurka.memoji.ui.components.AnimatedBackdrop
 import com.vurka.memoji.ui.theme.CardBackVisual
 import com.vurka.memoji.ui.theme.CardBackVisuals
+import com.vurka.memoji.ui.theme.Chrome
 import com.vurka.memoji.ui.theme.EmeraldGreen
 import com.vurka.memoji.ui.theme.GoldStar
+import com.vurka.memoji.ui.theme.LocalReduceMotion
 import com.vurka.memoji.ui.theme.RoyalBlue
 import com.vurka.memoji.ui.theme.VividRed
+import com.vurka.memoji.util.SoundManager
 import com.vurka.memoji.viewmodel.GameViewModel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.milliseconds
 
-private val HudSurface = Color(0xFF1C2541)
+private val HudSurface = Chrome.TopBar
 
 @Composable
 fun GameScreen(
     viewModel: GameViewModel,
     onBackPressed: () -> Unit,
-    onLevelCompleted: (Int, Int, Int, Int) -> Unit,
+    onNextLevel: (Int) -> Unit,
+    onWorldMap: () -> Unit,
+    onHome: () -> Unit,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val themeId by viewModel.selectedThemeId.collectAsStateWithLifecycle()
     val zen by viewModel.isZenMode.collectAsStateWithLifecycle()
+    val soundEnabled by viewModel.soundEnabled.collectAsStateWithLifecycle()
     val levelNumber = viewModel.levelNumber
     val config = viewModel.levelConfig
     val isDark = MaterialTheme.colorScheme.background.red < 0.5f
+    val reduceMotion = LocalReduceMotion.current
 
     // The clock must never run while the app is in the background.
     LifecycleEventEffect(Lifecycle.Event.ON_STOP) { viewModel.pauseIfRunning() }
@@ -95,10 +106,11 @@ fun GameScreen(
     val shake = remember { Animatable(0f) }
     var lastMistakes by remember { mutableIntStateOf(0) }
     LaunchedEffect(state.mistakes) {
-        if (state.mistakes > lastMistakes) {
+        if (state.mistakes > lastMistakes && !reduceMotion) {
             val frames = listOf(16f, -16f, 11f, -11f, 6f, -6f, 0f)
             frames.forEach { target -> shake.animateTo(target, animationSpec = tween(durationMillis = 45)) }
         }
+        if (reduceMotion) shake.snapTo(0f)
         lastMistakes = state.mistakes
     }
 
@@ -205,70 +217,22 @@ fun GameScreen(
         if (state.isGameOver && state.isWon) {
             ConfettiCelebration(modifier = Modifier.fillMaxSize())
 
-            AlertDialog(
-                onDismissRequest = {},
-                title = { Text("🎉 Victory!", fontWeight = FontWeight.Bold, fontSize = 24.sp, color = VividRed) },
-                text = {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-                        Text(
-                            if (config.isBoss) "👑 Boss Level $levelNumber defeated!" else "Level $levelNumber Completed!",
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 15.sp,
-                            textAlign = TextAlign.Center
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            for (index in 1..3) {
-                                VictoryStar(earned = index <= state.stars, delayMs = 250 + (index * 300))
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(14.dp))
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceEvenly
-                        ) {
-                            VictoryStat("⏱️", "${state.timeElapsedSec}s", "Time")
-                            VictoryStat("👟", state.moves.toString(), "Moves")
-                            VictoryStat("❌", state.mistakes.toString(), "Mistakes")
-                            VictoryStat("🔥", "x${state.maxCombo}", "Combo")
-                        }
-                        if (state.mistakes == 0) {
-                            Spacer(modifier = Modifier.height(12.dp))
-                            Text(
-                                "💎 Perfect Run — No Mistakes!",
-                                fontWeight = FontWeight.Bold,
-                                color = EmeraldGreen,
-                                fontSize = 14.sp
-                            )
-                        }
-                        if (state.coinsAwarded > 0) {
-                            Spacer(modifier = Modifier.height(12.dp))
-                            Text(
-                                "🪙 +${state.coinsAwarded} coins (first clear)",
-                                fontWeight = FontWeight.Bold,
-                                color = GoldStar,
-                                fontSize = 14.sp
-                            )
-                        }
-                    }
-                },
-                confirmButton = {
-                    Button(
-                        onClick = { onLevelCompleted(levelNumber, state.stars, state.moves, state.timeElapsedSec) },
-                        modifier = Modifier.testTag("next_level_button"),
-                        colors = ButtonDefaults.buttonColors(containerColor = VividRed)
-                    ) {
-                        Text("Continue", color = Color.White, fontWeight = FontWeight.Bold)
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { viewModel.startNewGame() }) {
-                        Text("Play Again", color = RoyalBlue, fontWeight = FontWeight.SemiBold)
-                    }
-                },
-                containerColor = MaterialTheme.colorScheme.surface,
-                textContentColor = MaterialTheme.colorScheme.onSurface,
-                titleContentColor = MaterialTheme.colorScheme.onSurface
+            VictoryDialog(
+                levelNumber = levelNumber,
+                worldName = viewModel.worldName,
+                isBoss = config.isBoss,
+                stars = state.stars,
+                moves = state.moves,
+                mistakes = state.mistakes,
+                timeElapsedSec = state.timeElapsedSec,
+                maxCombo = state.maxCombo,
+                coinsAwarded = state.coinsAwarded,
+                isPersonalBest = state.isPersonalBest,
+                soundEnabled = soundEnabled,
+                onNext = { onNextLevel((levelNumber + 1).coerceAtMost(LevelCatalog.TOTAL_LEVELS)) },
+                onReplay = viewModel::startNewGame,
+                onWorldMap = onWorldMap,
+                onHome = onHome,
             )
         }
 
@@ -282,17 +246,31 @@ fun GameScreen(
                     )
                 },
                 text = {
-                    Text(
-                        if (state.lossReason == "moves") {
-                            "You used all ${config.moveLimit} moves. Think before you flip — or try Zen mode in Settings for a relaxed run."
-                        } else {
-                            "Matched ${state.matchedPairsCount} of ${state.totalPairs} pairs. Don't give up — try again!"
-                        }
-                    )
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text(
+                            if (state.lossReason == "moves") {
+                                "You used all ${config.moveLimit} moves with ${state.matchedPairsCount} of ${state.totalPairs} pairs found."
+                            } else {
+                                "Matched ${state.matchedPairsCount} of ${state.totalPairs} pairs before the clock ran out."
+                            }
+                        )
+                        Text(
+                            if (config.isBoss) {
+                                "Boss levels give no hints and a tighter clock. A calm retry usually wins."
+                            } else {
+                                "Nothing is locked — retry now or pick an easier level from the map."
+                            },
+                            fontSize = 13.sp,
+                            color = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B)
+                        )
+                    }
                 },
                 confirmButton = {
                     Button(
-                        onClick = { viewModel.startNewGame() },
+                        onClick = {
+                            SoundManager.playTap(soundEnabled)
+                            viewModel.startNewGame()
+                        },
                         modifier = Modifier.testTag("retry_button"),
                         colors = ButtonDefaults.buttonColors(containerColor = VividRed)
                     ) {
@@ -300,8 +278,23 @@ fun GameScreen(
                     }
                 },
                 dismissButton = {
-                    TextButton(onClick = onBackPressed) {
-                        Text("Exit", color = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B))
+                    Row {
+                        TextButton(
+                            onClick = {
+                                SoundManager.playTap(soundEnabled)
+                                onWorldMap()
+                            }
+                        ) {
+                            Text("Choose Level", color = RoyalBlue, fontWeight = FontWeight.SemiBold)
+                        }
+                        TextButton(
+                            onClick = {
+                                SoundManager.playTap(soundEnabled)
+                                onBackPressed()
+                            }
+                        ) {
+                            Text("Exit", color = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B))
+                        }
                     }
                 },
                 containerColor = MaterialTheme.colorScheme.surface,
@@ -333,6 +326,162 @@ fun GameScreen(
                 textContentColor = MaterialTheme.colorScheme.onSurface,
                 titleContentColor = MaterialTheme.colorScheme.onSurface
             )
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------------------------
+// Victory
+// ---------------------------------------------------------------------------------------------
+
+@Composable
+private fun VictoryDialog(
+    levelNumber: Int,
+    worldName: String,
+    isBoss: Boolean,
+    stars: Int,
+    moves: Int,
+    mistakes: Int,
+    timeElapsedSec: Int,
+    maxCombo: Int,
+    coinsAwarded: Int,
+    isPersonalBest: Boolean,
+    soundEnabled: Boolean,
+    onNext: () -> Unit,
+    onReplay: () -> Unit,
+    onWorldMap: () -> Unit,
+    onHome: () -> Unit,
+) {
+    val isFinalLevel = levelNumber >= LevelCatalog.TOTAL_LEVELS
+
+    Dialog(onDismissRequest = {}) {
+        Surface(
+            shape = RoundedCornerShape(28.dp),
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 8.dp,
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(if (isFinalLevel) "🏔️" else "🎉", fontSize = 44.sp)
+                Text(
+                    if (isFinalLevel) "Summit Reached!" else "Victory!",
+                    fontWeight = FontWeight.Black,
+                    fontSize = 26.sp,
+                    color = VividRed
+                )
+                Text(
+                    if (isBoss) "👑 Boss level $levelNumber defeated" else "Level $levelNumber • $worldName",
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 14.sp,
+                    textAlign = TextAlign.Center,
+                    color = if (MaterialTheme.colorScheme.background.red < 0.5f) Color(0xFF94A3B8) else Color(0xFF64748B)
+                )
+
+                Spacer(Modifier.height(12.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    for (index in 1..3) {
+                        VictoryStar(earned = index <= stars, delayMs = 250 + (index * 300))
+                    }
+                }
+
+                Spacer(Modifier.height(14.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    VictoryStat("⏱️", "${timeElapsedSec}s", "Time")
+                    VictoryStat("👟", moves.toString(), "Moves")
+                    VictoryStat("❌", mistakes.toString(), "Mistakes")
+                    VictoryStat("🔥", "x$maxCombo", "Combo")
+                }
+
+                if (mistakes == 0) {
+                    Spacer(Modifier.height(12.dp))
+                    Text(
+                        "💎 Perfect run — no mistakes!",
+                        fontWeight = FontWeight.Bold,
+                        color = EmeraldGreen,
+                        fontSize = 14.sp
+                    )
+                }
+                if (isPersonalBest) {
+                    Spacer(Modifier.height(6.dp))
+                    Text("🏅 New personal best time", fontWeight = FontWeight.Bold, color = RoyalBlue, fontSize = 13.sp)
+                }
+                if (coinsAwarded > 0) {
+                    Spacer(Modifier.height(6.dp))
+                    Text("🪙 +$coinsAwarded coins", fontWeight = FontWeight.Bold, color = GoldStar, fontSize = 14.sp)
+                }
+
+                Spacer(Modifier.height(20.dp))
+                if (isFinalLevel) {
+                    Text(
+                        "You finished all ${LevelCatalog.TOTAL_LEVELS} levels. Every world is yours — replay any of them whenever you like.",
+                        fontSize = 13.sp,
+                        textAlign = TextAlign.Center,
+                        color = if (MaterialTheme.colorScheme.background.red < 0.5f) Color(0xFF94A3B8) else Color(0xFF64748B)
+                    )
+                } else {
+                    Button(
+                        onClick = {
+                            SoundManager.playTap(soundEnabled)
+                            onNext()
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(52.dp)
+                            .testTag("next_level_button"),
+                        colors = ButtonDefaults.buttonColors(containerColor = VividRed),
+                        shape = RoundedCornerShape(16.dp)
+                    ) {
+                        Text(
+                            "Next Level ${levelNumber + 1}",
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    TextButton(
+                        onClick = {
+                            SoundManager.playTap(soundEnabled)
+                            onReplay()
+                        },
+                        modifier = Modifier.testTag("replay_button")
+                    ) {
+                        Text("Replay", color = RoyalBlue, fontWeight = FontWeight.SemiBold)
+                    }
+                    TextButton(
+                        onClick = {
+                            SoundManager.playTap(soundEnabled)
+                            onWorldMap()
+                        },
+                        modifier = Modifier.testTag("victory_map_button")
+                    ) {
+                        Text("World Map", color = RoyalBlue, fontWeight = FontWeight.SemiBold)
+                    }
+                    TextButton(
+                        onClick = {
+                            SoundManager.playTap(soundEnabled)
+                            onHome()
+                        },
+                        modifier = Modifier.testTag("victory_home_button")
+                    ) {
+                        Text("Home", color = RoyalBlue, fontWeight = FontWeight.SemiBold)
+                    }
+                }
+            }
         }
     }
 }
@@ -665,23 +814,28 @@ fun MemoryCardItem(
     onClick: () -> Unit
 ) {
     val faceUp = card.isFlipped || card.isMatched
+    val reduceMotion = LocalReduceMotion.current
     val rotation = animateFloatAsState(
         targetValue = if (faceUp) 180f else 0f,
-        animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing),
+        animationSpec = tween(durationMillis = if (reduceMotion) 0 else 300, easing = FastOutSlowInEasing),
         label = "cardFlip"
     )
 
     // Staggered entrance when the deck appears.
-    val entrance = remember { Animatable(0f) }
+    val entrance = remember { Animatable(if (reduceMotion) 1f else 0f) }
     LaunchedEffect(Unit) {
-        delay(entranceDelayMs.milliseconds)
-        entrance.animateTo(1f, spring(dampingRatio = 0.6f, stiffness = 300f))
+        if (reduceMotion) {
+            entrance.snapTo(1f)
+        } else {
+            delay(entranceDelayMs.milliseconds)
+            entrance.animateTo(1f, spring(dampingRatio = 0.6f, stiffness = 300f))
+        }
     }
 
     // Bouncy "pop" the moment a pair is matched.
     val pop = remember { Animatable(1f) }
     LaunchedEffect(card.isMatched) {
-        if (card.isMatched) {
+        if (card.isMatched && !reduceMotion) {
             pop.animateTo(1.18f, tween(110))
             pop.animateTo(1f, spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium))
         }
@@ -696,7 +850,11 @@ fun MemoryCardItem(
         }
     }
     val frontBorder = if (card.isMatched) BorderStroke(2.5.dp, Color(0xFFA7F3D0)) else BorderStroke(1.5.dp, RoyalBlue)
-    val description = if (faceUp) "Card ${card.emoji}" else "Hidden card"
+    val description = when {
+        card.isMatched -> "Matched pair, ${card.emoji}"
+        faceUp -> "Card ${card.emoji}, face up"
+        else -> "Hidden card"
+    }
 
     Box(
         modifier = modifier
@@ -737,7 +895,10 @@ fun MemoryCardItem(
                         )
                     }
                 }
-                .border(BorderStroke(2.dp, backStyle.border), shape),
+                .border(BorderStroke(2.dp, backStyle.border), shape)
+                // The glyph is decorative; the card's own semantics describe it, so a face-down
+                // card never reveals its emoji to TalkBack.
+                .clearAndSetSemantics { },
             contentAlignment = Alignment.Center
         ) {
             Text(text = backStyle.symbol, fontSize = (emojiSize.value * 0.75f).sp)
@@ -753,7 +914,8 @@ fun MemoryCardItem(
                 }
                 .clip(shape)
                 .background(frontBrush, shape)
-                .border(frontBorder, shape),
+                .border(frontBorder, shape)
+                .clearAndSetSemantics { },
             contentAlignment = Alignment.Center
         ) {
             Text(text = card.emoji, fontSize = emojiSize)

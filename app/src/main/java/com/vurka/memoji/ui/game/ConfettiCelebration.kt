@@ -15,6 +15,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.runtime.withFrameNanos
+import com.vurka.memoji.ui.theme.LocalReduceMotion
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.exp
@@ -46,6 +47,8 @@ private val ConfettiColors = listOf(
  */
 @Composable
 fun ConfettiCelebration(modifier: Modifier = Modifier) {
+    // Confetti is pure decoration; skip it entirely under reduced motion.
+    if (LocalReduceMotion.current) return
     val pieces = remember {
         val r = Random(System.nanoTime())
         List(150) { i ->

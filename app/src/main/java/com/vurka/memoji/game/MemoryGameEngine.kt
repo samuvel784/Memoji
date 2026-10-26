@@ -37,6 +37,8 @@ data class GameState(
     val coinsAwarded: Int = 0,
     /** True when this victory cleared the level for the first time. */
     val isFirstClear: Boolean = false,
+    /** True when this run set a new best time for the level. */
+    val isPersonalBest: Boolean = false,
 )
 
 class MemoryGameEngine(private val levelConfig: LevelConfig, private val random: Random = Random.Default) {

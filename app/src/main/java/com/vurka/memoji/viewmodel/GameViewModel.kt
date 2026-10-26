@@ -38,7 +38,8 @@ class GameViewModel(application: Application, val levelNumber: Int) : AndroidVie
     /** Human friendly name of the world this level belongs to. */
     val worldName: String = LevelCatalog.getWorldName(levelNumber)
 
-    private val soundEnabled: StateFlow<Boolean> = progressRepository.soundEnabled.stateIn(
+    /** Mirrors the sound preference so the victory/loss dialogs can play their own feedback. */
+    val soundEnabled: StateFlow<Boolean> = progressRepository.soundEnabled.stateIn(
         scope = viewModelScope,
         started = SharingStarted.Eagerly,
         initialValue = true,
@@ -183,8 +184,20 @@ class GameViewModel(application: Application, val levelNumber: Int) : AndroidVie
         }
         if (lostByTime) {
             timerJob?.cancel()
-            SoundManager.playError(soundEnabled.value)
+            SoundManager.playDefeat(soundEnabled.value)
             HapticManager.triggerMismatch(getApplication(), hapticsEnabled.value)
+            recordLoss()
+        }
+    }
+
+    /**
+     * A finished run counts once, whether it was won or lost: the daily streak should reward the
+     * days you played, and "games played" must not silently ignore defeats.
+     */
+    private fun recordLoss() {
+        viewModelScope.launch {
+            progressRepository.updateDailyStreak()
+            progressRepository.updatePlayStats(isPerfect = false)
         }
     }
 
@@ -315,13 +328,20 @@ class GameViewModel(application: Application, val levelNumber: Int) : AndroidVie
                         it.copy(
                             coinsAwarded = result.coinsAwarded,
                             isFirstClear = result.isFirstClear,
+                            isPersonalBest = result.isPersonalBest,
                         )
                     }
                 }
                 return
             }
 
-            SoundManager.playMatch(soundEnabled.value)
+            // Combo milestones get their own rising accent; ordinary matches keep the chime so the
+            // two cues never overlap.
+            if (newCombo > 0 && newCombo % 3 == 0) {
+                SoundManager.playCombo(soundEnabled.value)
+            } else {
+                SoundManager.playMatch(soundEnabled.value)
+            }
             HapticManager.triggerMatch(getApplication(), hapticsEnabled.value)
 
             _state.value = current.copy(
@@ -363,9 +383,10 @@ class GameViewModel(application: Application, val levelNumber: Int) : AndroidVie
         // Move limit (not in Zen mode).
         if ((!zen) && (levelConfig.moveLimit > 0) && (newMoves >= levelConfig.moveLimit) && (!_state.value.isWon)) {
             cancelAllJobs()
-            SoundManager.playError(soundEnabled.value)
+            SoundManager.playDefeat(soundEnabled.value)
             HapticManager.triggerMismatch(getApplication(), hapticsEnabled.value)
             _state.update { it.copy(isGameOver = true, isWon = false, lossReason = "moves") }
+            recordLoss()
         }
     }
 
@@ -401,6 +422,7 @@ class GameViewModel(application: Application, val levelNumber: Int) : AndroidVie
 
     private fun setPaused(paused: Boolean) {
         _state.update { it.copy(isPaused = paused) }
+        SoundManager.playPause(soundEnabled.value)
         if (paused) {
             timerJob?.cancel()
             autoHideJob?.cancel()
