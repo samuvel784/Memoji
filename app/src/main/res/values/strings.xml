@@ -1,3 +1,340 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Memoji - The Memory Game</string>
+
+    <!-- App -->
+    <string name="app_name">Emogy</string>
+    <string name="app_subtitle">The Memory Game</string>
+    <string name="offline_badge">Offline • No ads • No tracking</string>
+    <string name="cd_back">Back</string>
+    <string name="cd_close">Close</string>
+
+    <!-- Bottom navigation -->
+    <string name="nav_home">Home</string>
+    <string name="nav_map">Map</string>
+    <string name="nav_daily">Daily</string>
+    <string name="nav_album">Album</string>
+    <string name="nav_more">More</string>
+
+    <!-- Welcome sheet -->
+    <string name="welcome_title">👋 Welcome to Emogy</string>
+    <string name="welcome_intro">A calm memory game with 1,000 levels. Every level is open from the start.</string>
+    <string name="welcome_pair_title">Find every pair</string>
+    <string name="welcome_pair_body">Flip two cards at a time. Matching emoji stay face-up; mismatches flip back after a moment.</string>
+    <string name="welcome_best_title">Beat your own best</string>
+    <string name="welcome_best_body">Fewer moves and a faster time earn more stars. Replays only improve your records.</string>
+    <string name="welcome_more_title">Come back for more</string>
+    <string name="welcome_more_body">A new Daily Challenge every day, plus an Emoji Album that fills in as you match pairs.</string>
+    <string name="welcome_start">Start Playing</string>
+    <string name="welcome_rules">Read the full rules</string>
+    <string name="cd_close_welcome">Close welcome</string>
+
+    <!-- How to play -->
+    <string name="how_to_play_title">📖 How to Play</string>
+    <string name="howto_flip_title">Flip &amp; Match Pairs</string>
+    <string name="howto_flip_body">Tap two cards to reveal them. Identical emojis remain face-up. Remember where mismatched emojis are!</string>
+    <string name="howto_hints_title">Use Power-up Hints</string>
+    <string name="howto_hints_body">Need help? Tap the lightbulb to briefly peek at all hidden cards. Has a 10s cooldown timer.</string>
+    <string name="howto_assist_title">Assist Mode</string>
+    <string name="howto_assist_body">Turn it on in Settings, then tap the heart in a level to reveal one matching pair. It works on every level and spends no hints, moves or stars.</string>
+    <string name="howto_streaks_title">Daily Streaks</string>
+    <string name="howto_streaks_body">Play every day to build your streak! Track your progress in Statistics.</string>
+    <string name="howto_daily_title">Daily Challenge</string>
+    <string name="howto_daily_body">A new 8-pair board every local day. Finish it once to earn 25 coins; replays only improve your daily best time and moves.</string>
+    <string name="howto_album_title">Emoji Album</string>
+    <string name="howto_album_body">Every pair you match unlocks its emoji in the offline album. Track your collection by category with no purchases or online account.</string>
+    <string name="howto_themes_title">Card-Back Themes</string>
+    <string name="howto_themes_body">Complete levels or spend coins to unlock card backs. Preview them live in the Themes menu.</string>
+    <string name="howto_zen_title">Zen Mode</string>
+    <string name="howto_zen_body">Prefer a relaxed game? Turn on Zen Mode in Settings to remove all time and move limits.</string>
+    <string name="howto_worlds_title">Themed Worlds</string>
+    <string name="howto_worlds_body">Each of the 20 worlds uses its own emoji theme - animals, food, nature, and more!</string>
+    <string name="howto_stars_title">Earn 3 Stars</string>
+    <string name="howto_stars_body">Solve puzzles with fewer moves and faster times to score up to 3 stars and track personal bests.</string>
+    <string name="howto_map_title">1000-Level World Map</string>
+    <string name="howto_map_body">Advance sequentially through Easy, Medium, Hard, and Expert tiers across 20 themed worlds.</string>
+    <string name="howto_got_it">Got It! Let\'s Play</string>
+
+    <!-- Home -->
+    <string name="cd_logo">Emogy logo</string>
+    <string name="cd_statistics">Statistics</string>
+    <string name="cd_coin_store">Coin store</string>
+    <string name="cd_settings">Settings</string>
+    <string name="home_title">EMOGY</string>
+    <string name="home_worlds">%1$d Worlds</string>
+    <string name="home_levels">%1$d Levels</string>
+    <string name="home_world_header">World %1$d • %2$s</string>
+    <string name="home_level_range">Levels %1$d–%2$d</string>
+    <string name="home_progress">%1$d / %2$d levels completed</string>
+    <string name="home_stars">⭐ %1$d</string>
+    <string name="home_continue">CONTINUE</string>
+    <string name="home_play">PLAY</string>
+    <string name="home_level">LEVEL %1$d</string>
+    <string name="home_choose_level">Choose Level</string>
+    <string name="home_all_open">all %1$d open</string>
+    <string name="home_daily">Daily Challenge</string>
+    <string name="home_daily_done">Daily Challenge — done</string>
+    <string name="home_daily_replay">Replay today\'s board for a better time</string>
+    <string name="home_daily_meta">%1$d pairs • %2$ds • +%3$d coins</string>
+    <string name="home_done">DONE</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_reset_title">Reset game progress?</string>
+    <string name="settings_reset_clears">This permanently clears:</string>
+    <string name="settings_reset_levels">• completed levels, stars and personal bests</string>
+    <string name="settings_reset_coins">• coins, purchased card backs and claimed rewards</string>
+    <string name="settings_reset_games">• games played, perfect games and your daily streak</string>
+    <string name="settings_reset_keep">All %1$d levels stay playable. Your sound, haptics, theme mode, Zen mode and Assist mode settings are kept.</string>
+    <string name="action_reset">Reset</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="settings_reset_done_title">Progress reset</string>
+    <string name="settings_reset_done_body">Your stats start from zero again. Every level is still open — jump back in wherever you like.</string>
+    <string name="action_ok">OK</string>
+    <string name="settings_sound">Sound</string>
+    <string name="settings_sound_desc">Master switch for music and effects</string>
+    <string name="settings_volume">Volume</string>
+    <string name="settings_volume_on">Music stays quiet under the sound effects.</string>
+    <string name="settings_volume_off">Muted. Raise Master or switch Sound back on.</string>
+    <string name="volume_master">Master</string>
+    <string name="volume_music">Music</string>
+    <string name="volume_effects">Effects</string>
+    <string name="cd_volume">%1$s volume</string>
+    <string name="settings_preview">Preview Sounds</string>
+    <string name="settings_preview_on">Tap to hear each cue</string>
+    <string name="settings_preview_off">Turn sound on to preview</string>
+    <string name="sound_flip">Flip</string>
+    <string name="sound_match">Match x5</string>
+    <string name="sound_combo">Combo</string>
+    <string name="sound_star">Star</string>
+    <string name="sound_tick">Tick</string>
+    <string name="sound_whoosh">Whoosh</string>
+    <string name="sound_coin">Coin</string>
+    <string name="sound_chest">Chest</string>
+    <string name="sound_boss">Boss</string>
+    <string name="sound_victory">Victory</string>
+    <string name="settings_haptics">Haptic Feedback</string>
+    <string name="settings_haptics_desc">Touch and match vibration</string>
+    <string name="settings_zen">Zen Mode</string>
+    <string name="settings_zen_desc">Relaxed play — no time or move limits</string>
+    <string name="settings_assist">Assist Mode</string>
+    <string name="settings_assist_desc">Tap the heart in a level to reveal one matching pair. Works on every level, including bosses. No penalty.</string>
+    <string name="settings_theme_mode">Theme Mode</string>
+    <string name="settings_theme_desc">Red &amp; Blue Game Palette</string>
+    <string name="theme_default">Default</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_dark">Dark</string>
+    <string name="settings_how_to_play">How to Play Guide</string>
+    <string name="settings_reset">Reset All Game Progress</string>
+
+    <!-- Game -->
+    <string name="game_daily_title">📅 Daily Challenge</string>
+    <string name="game_boss_title">👑 Boss • Level %1$d</string>
+    <string name="game_level_title">Level %1$d</string>
+    <string name="game_restored">Run restored</string>
+    <string name="action_restart">Restart</string>
+    <string name="game_loss_moves_title">👟 Out of Moves!</string>
+    <string name="game_loss_time_title">⏳ Time\'s Up!</string>
+    <string name="game_loss_moves_body">You used all %1$d moves with %2$d of %3$d pairs found.</string>
+    <string name="game_loss_time_body">Matched %1$d of %2$d pairs before the clock ran out.</string>
+    <string name="game_loss_boss_tip">Boss levels give no hints and a tighter clock. A calm retry usually wins.</string>
+    <string name="game_loss_daily_tip">The daily board stays the same all day. Retry for a clean run.</string>
+    <string name="game_loss_tip">Nothing is locked — retry now or pick an easier level from the map.</string>
+    <string name="action_retry">Retry</string>
+    <string name="action_choose_level">Choose Level</string>
+    <string name="action_exit">Exit</string>
+    <string name="game_paused">Game Paused</string>
+    <string name="game_restored_body">Your board was saved when the app closed. The clock is still stopped.</string>
+    <string name="game_paused_body">Take a quick break. The clock is stopped.</string>
+    <string name="action_resume">Resume</string>
+    <string name="action_quit">Quit</string>
+    <string name="game_victory_daily">Daily Challenge!</string>
+    <string name="game_victory_summit">Summit Reached!</string>
+    <string name="game_victory">Victory!</string>
+    <string name="game_victory_daily_first">First clear today • +%1$d coins</string>
+    <string name="game_victory_daily_done">%1$s • board complete</string>
+    <string name="game_victory_boss">👑 Boss level %1$d defeated</string>
+    <string name="game_victory_level">Level %1$d • %2$s</string>
+    <string name="game_stat_time">Time</string>
+    <string name="game_stat_moves">Moves</string>
+    <string name="game_stat_mistakes">Mistakes</string>
+    <string name="game_stat_combo">Combo</string>
+    <string name="game_perfect">💎 Perfect run — no mistakes!</string>
+    <string name="game_new_daily_best">🏅 New daily best time</string>
+    <string name="game_new_best">🏅 New personal best time</string>
+    <string name="game_coins">🪙 +%1$d coins</string>
+    <string name="action_done">Done</string>
+    <string name="game_finished_all">You finished all %1$d levels. Every world is yours — replay any of them whenever you like.</string>
+    <string name="game_next_level">Next Level %1$d</string>
+    <string name="game_play_again">Play Again</string>
+    <string name="game_replay">Replay</string>
+    <string name="game_world_map">World Map</string>
+    <string name="game_home">Home</string>
+    <string name="cd_hint">Hint</string>
+    <string name="cd_assist">Assist: reveal one matching pair</string>
+    <string name="cd_pause">Pause</string>
+    <string name="cd_restart">Restart</string>
+    <string name="hud_moves">👟 %1$d/%2$d</string>
+    <string name="hud_moves_zen">👟 %1$d</string>
+    <string name="hud_mistakes">❌ %1$d</string>
+    <string name="hud_pairs">🧩 %1$d/%2$d</string>
+    <string name="hud_time_left">⏳ %1$ds</string>
+    <string name="hud_time_elapsed">⏱️ %1$ds</string>
+    <string name="status_memorize">👀 Memorize the cards!</string>
+    <string name="status_zen">🧘 Zen</string>
+    <string name="status_combo">🔥 Combo x%1$d</string>
+    <string name="status_shuffle">🔀 %1$ds</string>
+    <string name="status_hides">⚡ Hides %1$ss</string>
+    <string name="popup_combo">🔥 COMBO x%1$d!</string>
+    <string name="popup_shuffled">🔀 Shuffled!</string>
+    <string name="cd_card_matched">Matched pair, %1$s</string>
+    <string name="cd_card_assist">Assist, card %1$s, face up</string>
+    <string name="cd_card_face_up">Card %1$s, face up</string>
+    <string name="cd_card_hidden">Hidden card</string>
+
+    <!-- World map -->
+    <string name="map_title">World Map</string>
+    <string name="map_subtitle">All %1$d levels available • Last played: %2$d</string>
+    <string name="map_stars">⭐ %1$d</string>
+    <string name="map_jump">Jump</string>
+    <string name="map_current_level">📍 Level %1$d</string>
+    <string name="map_error_number">Enter a level number</string>
+    <string name="map_error_range">Levels go from 1 to %1$d</string>
+    <string name="map_jump_title">Jump to level</string>
+    <string name="map_every_open">Every level from 1 to %1$d is open.</string>
+    <string name="map_level_number">Level number</string>
+    <string name="map_quick">Quick jumps</string>
+    <string name="map_last_played">Last played (%1$d)</string>
+    <string name="action_go">Go</string>
+    <string name="map_cd_level_stars">Level %1$d, %2$s, %3$d of 3 stars</string>
+    <string name="map_cd_level_boss">Level %1$d, %2$s, boss level, not completed</string>
+    <string name="map_cd_level">Level %1$d, %2$s, not completed</string>
+    <string name="map_boss">BOSS</string>
+    <string name="map_world">World %1$d</string>
+    <string name="map_level_range">Levels %1$d–%2$d</string>
+    <string name="map_stars_earned">⭐ %1$d/%2$d</string>
+    <string name="map_summit_done">You conquered every world!</string>
+    <string name="map_summit_waiting">The Summit awaits</string>
+    <string name="map_summit_meta">%1$d levels • %2$d worlds</string>
+    <string name="map_preview_boss">👑 Boss Level %1$d</string>
+    <string name="map_preview_level">Level %1$d</string>
+    <string name="map_preview_world">%1$s %2$s • %3$s</string>
+    <string name="map_best">Personal best: %1$s</string>
+    <string name="map_best_moves">👟 %1$d moves</string>
+    <string name="map_pairs">%1$d pairs (%2$d cards)</string>
+    <string name="map_memorise">%1$ds to memorise</string>
+    <string name="map_zen_note">Zen mode: no timer, move limit or shuffles</string>
+    <string name="map_time_limit">%1$ds time limit</string>
+    <string name="map_no_time">No time limit</string>
+    <string name="map_moves_max">%1$d moves max</string>
+    <string name="map_no_move">No move limit</string>
+    <string name="map_reshuffle">Cards reshuffle every %1$ds</string>
+    <string name="map_hide">A lone card hides after %1$ss</string>
+    <string name="map_hints_unlimited">Unlimited hints</string>
+    <string name="map_hints_none">No hints</string>
+    <plurals name="map_hints">
+        <item quantity="one">%1$d hint</item>
+        <item quantity="other">%1$d hints</item>
+    </plurals>
+    <string name="action_play">Play</string>
+
+    <!-- Daily challenge -->
+    <string name="daily_title">Daily Challenge</string>
+    <string name="daily_one_board">ONE BOARD A DAY</string>
+    <string name="daily_completed">✅ Completed today</string>
+    <string name="daily_ready">Today\'s board is ready</string>
+    <string name="daily_completed_body">You can replay it for a better time, but the %1$d-coin reward is once a day.</string>
+    <string name="daily_ready_body">A fixed %1$d-pair board for everyone. Finish it once today to earn %2$d coins.</string>
+    <string name="daily_pairs">%1$d pairs</string>
+    <string name="daily_time">%1$ds</string>
+    <string name="daily_hints">%1$d hints</string>
+    <string name="daily_best_time">Best time</string>
+    <string name="daily_best_moves">Best moves</string>
+    <string name="daily_completed_count">Completed</string>
+    <string name="daily_play_again">PLAY AGAIN</string>
+    <string name="daily_play">PLAY TODAY\'S BOARD</string>
+    <string name="daily_body">The same board is dealt to everyone on the same day. It resets at local midnight, and it works completely offline.</string>
+    <string name="daily_zen_note">Zen mode still applies if you prefer no timer.</string>
+
+    <!-- Emoji album -->
+    <string name="album_title">Emoji Album</string>
+    <string name="album_footer">Every emoji is unlocked by playing. No purchases, no duplicates, no online account.</string>
+    <string name="album_complete">Album complete!</string>
+    <string name="album_collection">Your collection</string>
+    <string name="album_collected">%1$d of %2$d emoji collected</string>
+    <string name="album_percent">%1$d%%</string>
+    <string name="album_complete_body">Every emoji in the catalogue is yours. Show off that memory!</string>
+    <string name="album_progress_body">Match a pair in any level or the Daily Challenge to unlock its emoji.</string>
+    <string name="album_locked">Locked emoji</string>
+    <string name="album_claimed">Claimed by matching this pair.</string>
+    <string name="album_locked_body">Match this pair in any level or the Daily Challenge to add it to your album.</string>
+    <string name="action_nice">Nice</string>
+    <string name="action_got_it">Got it</string>
+
+    <!-- More -->
+    <string name="more_title">More</string>
+    <string name="more_progress">PROGRESS</string>
+    <string name="more_rewards">Rewards &amp; Quests</string>
+    <string name="more_rewards_sub">Claim coin bounties</string>
+    <string name="more_stats">Statistics</string>
+    <string name="more_stats_sub">Flips, perfect games, daily streak</string>
+    <string name="more_customise">CUSTOMISE</string>
+    <string name="more_themes">Card-Back Themes</string>
+    <string name="more_themes_sub">Preview and choose a card back</string>
+    <string name="more_store">Coin Store</string>
+    <string name="more_store_sub">Spend the coins you earn</string>
+    <string name="more_app">APP</string>
+    <string name="more_settings">Settings</string>
+    <string name="more_settings_sub">Audio, haptics, Zen and Assist</string>
+    <string name="more_how_to_play">How to Play</string>
+    <string name="more_how_to_play_sub">Rules, tips and feature guide</string>
+    <string name="more_levels">Levels</string>
+    <string name="more_stars">Stars</string>
+    <string name="more_coins">Coins</string>
+
+    <!-- Player statistics -->
+    <string name="stats_title">Player Statistics</string>
+    <string name="stats_levels_available">Levels Available</string>
+    <string name="stats_levels_available_value">%1$d • All playable</string>
+    <string name="stats_levels_completed">Levels Completed</string>
+    <string name="stats_total_stars">Total Stars</string>
+    <string name="stats_total_stars_value">%1$d / %2$d</string>
+    <string name="stats_completion_rate">Completion Rate</string>
+    <string name="stats_percent">%1$d%%</string>
+    <string name="stats_last_played">Last Played Level</string>
+    <string name="stats_daily_streak">Daily Streak</string>
+    <string name="stats_daily_streak_value">%1$d 🔥</string>
+    <string name="stats_games">Total Games Played</string>
+    <string name="stats_perfect">Perfect Games (No Mistakes)</string>
+    <string name="stats_perfect_rate">Perfect Rate</string>
+    <string name="stats_current_world">Current World (%1$d/%2$d)</string>
+    <string name="stats_world_progress">%1$d/%2$d</string>
+
+    <!-- Rewards & quests -->
+    <string name="rewards_title">Rewards &amp; Quests</string>
+    <string name="rewards_vault">🪙 Reward Vault</string>
+    <string name="rewards_vault_body">Complete quests to earn coin bounties!</string>
+    <string name="rewards_claimed">Claimed</string>
+    <string name="rewards_claim">Claim 🪙 %1$d</string>
+    <string name="rewards_coin">🪙 %1$d</string>
+    <string name="rewards_progress">Progress</string>
+    <string name="rewards_progress_value">%1$d / %2$d</string>
+    <string name="cd_claimed">Claimed</string>
+
+    <!-- Store -->
+    <string name="store_title">Item Store</string>
+    <string name="store_not_enough_title">Not Enough Coins!</string>
+    <string name="store_not_enough_body">Complete Daily, Weekly, and Monthly tasks to earn more coins!</string>
+    <string name="store_heading">🛒 Coin Store</string>
+    <string name="store_heading_body">Spend your hard-earned coins to unlock exclusive themes!</string>
+    <string name="store_owned">Owned</string>
+    <string name="store_price">🪙 %1$d</string>
+    <string name="cd_owned">Owned</string>
+
+    <!-- Themes -->
+    <string name="themes_title">Card-Back Themes</string>
+    <string name="themes_locked_progress">%1$d/%2$d levels</string>
+    <string name="themes_locked">🔒 %1$s</string>
+    <string name="cd_selected">Selected</string>
+    <string name="cd_locked">Locked</string>
+
 </resources>

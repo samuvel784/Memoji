@@ -1,4 +1,220 @@
-# Memoji v2.0 – what changed
+# Emogy v2.1 – what changed
+
+## Branding update
+* The user-facing public name is **Emogy** everywhere: launcher label, Home wordmark, Welcome sheet,
+  docs and store metadata.
+* The application ID is now `com.vurka.emogy` and the Kotlin namespace matches it. This is a new
+  install identity: a device with a `com.vurka.memoji` build does not receive this as an update and
+  its local progress is not migrated. DataStore names and saved-data keys are unchanged, so progress
+  still survives backup/restore within the new package.
+
+### Copy lives in `strings.xml`
+* Every piece of UI chrome and copy is now an English string resource in
+  `app/src/main/res/values/strings.xml` (302 keys plus one plural): navigation labels, Home, World Map, Daily,
+  Album, More, Statistics, Rewards, Store, Themes, Settings, How to Play, Welcome and every game
+  dialog, HUD label and accessibility description.
+* Catalog content stays in Kotlin data on purpose: emoji names, world names, theme names and
+  descriptions, quest titles and store-item names are game data, not chrome.
+* No locale folders were added yet; the default English resources are the only ones shipped.
+* `TopLevelDestinations` tab labels are `@StringRes` ids, so the bottom bar cannot drift from the
+  catalog.
+
+### Privacy policy refreshed
+* `PRIVACY_POLICY.md` now spells out every category of data stored locally (progress, album, daily
+  results, settings, first-run flag, 24-hour resume snapshot, statistics), the Android backup
+  behaviour, the single `VIBRATE` permission, the absence of ads/IAP/SDKs, the General / 13+
+  audience, and exactly how players delete their data.
+* The only unresolved item in the policy is the contact email; the page is otherwise ready to host.
+
+### Tests
+* Text assertions were updated for the new name (`ExampleRobolectricTest`, `WelcomeSheetTest`) and
+  `TopLevelDestinationsTest` now checks that each tab has a real string resource.
+* `:app:compileDebugKotlin` was kept green after every screen.
+
+## Phase 4 – Navigation shell
+
+### Five tabs instead of a long Home menu
+* A persistent bottom bar now has **Home**, **Map**, **Daily**, **Album** and **More**.
+* Home stays the play/continue hub. Rewards, Statistics, Themes, Coin Store, Settings and How to
+  Play moved into the new **More** tab, which also shows a compact levels/stars/coins overview.
+* The bar appears only on those five roots. Boards, the daily board and every secondary screen hide
+  it and keep their own back arrow instead.
+* Tab switches save and restore each tab's scroll position; re-tapping the current tab does nothing.
+
+### One owner for layout and insets
+* A single app-level `Scaffold` owns the bar, so screens no longer add their own navigation-bar
+  padding on top of it.
+* Album and More no longer apply the system-bar inset a second time inside their own scaffolds.
+* The world map no longer reserves a second navigation-bar inset at the end of its scroll content.
+* Home, Daily and the world map no longer show a back arrow on a root destination.
+
+### Tests
+* `TopLevelDestinationsTest` proves there are exactly five roots, that board and secondary routes
+  hide the bar, and that routes and test tags are unique.
+* `AppBottomBarTest` checks the five tabs, the selected state, that taps report routes, and that
+  tapping the current tab does not navigate.
+* `MainActivityNavigationTest` launches the real activity and walks Home → Daily → Album → Map →
+  More → Settings, checking that the bar disappears and the back arrow appears; it repeats the tab
+  layout at 320×480.
+* `WelcomeSheetTest` covers the one-time onboarding content and all three exits.
+
+---
+
+## Phase 2 – Core-loop polish
+
+### First run now explains itself
+* A one-time **Welcome** sheet appears on a fresh install after DataStore has answered. It covers
+  matching, star scoring and the Daily/Album loop, then gets out of the way.
+* It can be skipped by swiping/back, the close button, or **Start Playing**; **Read the full rules**
+  opens the existing How-to-Play sheet.
+* The welcome flag is stored in DataStore and preserved by **Reset All Game Progress**, so a reset
+  does not replay the introduction.
+* Returning players are not shown the welcome just because the flag did not exist in an older build:
+  the sheet only appears when there is no other evidence of play.
+
+### First launch no longer says CONTINUE
+* A fresh install stores level 1 as the Continue target, which previously made the main button say
+  **CONTINUE** before the player had touched a card.
+* The button now says **PLAY** until a card has been flipped or a level other than 1 has been chosen.
+* The rule lives in pure `HomeProgressRules` and is unit-tested.
+
+### Daily date is the board's date
+* `DailyChallenge.dateLabel(epochDay)` formats the stored board day instead of reading the current
+  clock, so an app left open across midnight still shows the date of the board being played.
+* The helper has explicit timezone tests (UTC, GMT-11, GMT+14).
+
+### Tests
+* `HomeProgressTest` covers fresh install, loading state, first flip, another level and catalogue
+  bounds.
+* `DailyChallengeTest` adds stored-day formatting and extreme-timezone cases.
+
+---
+
+## Phase 3 – Emoji Album
+
+### Collect what you match
+* Home has a new **Album** entry. Every successful pair match adds that emoji to an offline
+  collection, including the final pair of a level and every Daily Challenge run.
+* The album is grouped by the catalogue's 11 categories with a per-category counter, an overall
+  counter, a percentage and a progress bar.
+* Uncollected tiles are dimmed and locked; tapping any tile opens its emoji name, category and how
+  to unlock it. Nothing is purchasable and no duplicates or packs are involved.
+* Collected ids are stored in DataStore as a `StringSet`. Unknown or retired ids are ignored when
+  the album is calculated, so a catalogue change cannot inflate the count.
+* **Reset All Game Progress** clears the album with the rest of the progress.
+
+### Tests
+* `AlbumProgressTest` covers empty/full collections, per-category maths, unknown ids, catalogue
+  order, duplicate-safe counting and the empty-catalogue divide-by-zero guard.
+* `GameViewModelTest` adds three cases: a match unlocks exactly its own emoji, the final pair and
+  a daily run are collected, and a mismatch unlocks nothing.
+
+---
+
+## Phase 3 – Daily Challenge
+
+### One board a day, entirely offline
+* Home has a **Daily Challenge** card, and a dedicated lobby shows today's date, the streak,
+  all-time daily bests and whether today is already done.
+* The board is seeded from the local calendar day: 8 pairs, 120 seconds, 3 hints, no move limit.
+  Everyone on the same date gets the same cards; no server, account or clock sync is involved.
+* The first completion each day pays **25 coins**. Replays only improve the all-time daily best
+  time and moves, so the reward cannot be farmed.
+* Daily runs never touch level stars, level bests, the Continue button or the resumable level
+  snapshot. Wins and losses still count in play stats and the daily streak.
+* The challenge resets at local midnight, and moving the device clock backwards cannot claim a
+  second reward for the same day.
+* Zen mode still applies, so the daily board can be played without a timer.
+
+### Boundaries
+* Daily runs are one sitting: they are deliberately not written into the level-snapshot store, so
+  a daily run cannot overwrite a suspended story level. Pausing still stops the clock.
+
+### Tests
+* `DailyChallengeTest` covers same-day/different-day seeds, the exact deck for a day, the lobby
+  constants, first-completion coins, best-only-improves rules, the next-day reset, clock rollback
+  and local-midnight boundaries.
+* `GameViewModelTest` adds five virtual-time cases: deterministic board, day-to-day variation,
+  one payout with no level record, replay without a second payout, and snapshot isolation.
+
+---
+
+## Phase 3 – Assist mode
+
+### What it is
+* Settings has a new **Assist Mode** toggle (off by default). When it is on, every level shows a
+  heart button next to the hint.
+* Tapping the heart reveals **one matching pair** for 2.6 seconds, with a gold outline. It never
+  shows the whole board, so it is a nudge rather than a solve button.
+* Assist works on **every** level, including boss levels that have zero hints. It costs no hints,
+  moves or coins and does not change star scoring.
+* A 20-second cooldown prevents repeated reveals. The heart badge counts down, and the cooldown
+  pauses with the game.
+
+### Behaviour details
+* The pair is picked from face-down, unmatched cards only, so Assist never fights an active hint
+  or a half-finished selection.
+* Revealed cards can still be tapped normally. Resolving the pair immediately clears the glow;
+  otherwise it fades after 2.6 seconds.
+* Pausing, restarting or leaving the level cancels the reveal. Assist state is visual only and is
+  not written into the resumable snapshot.
+* The setting is persisted in DataStore and preserved by **Reset All Game Progress**, like Zen mode.
+
+### Tests
+* `AssistRulesTest` covers pair selection: same emoji, exactly two cards, never matched or already
+  face-up cards, and the empty cases.
+* `GameViewModelTest` adds six virtual-time tests: reveal without spending a hint or move, cooldown
+  gating, boss levels with zero hints, mode-off, preview/pause behaviour, and playing the revealed
+  pair normally.
+
+---
+
+## Phase 1 – correctness pass (towards v2.2)
+
+### Interrupted runs survive process death
+* An unfinished level is now saved to DataStore: board, matched pairs, moves, mistakes, timer,
+  hints, combo, shuffle state and whether it was paused.
+* On reopening the same level, the board is restored and a **Run restored** snackbar offers
+  **Restart**. A run saved while paused comes back into the pause dialog.
+* Snapshots expire after 24 hours, are cleared on win/loss/quit/reset, and are only accepted when
+  the level, card count, pairing, limits and time all validate. Corrupt or old-version data is
+  ignored and a fresh board is dealt.
+* Saves are debounced after moves, hints and shuffles, and written immediately on pause/`onStop`.
+* The clock gets a one-second grace period after an unpaused restore.
+
+### Rules are testable and no longer race the settings
+* `GameViewModel` is a plain `ViewModel` with injected clock, settings, feedback, progress and
+  snapshot store. Production adapters keep the existing SoundPool/Haptic/DataStore engines.
+* Zen mode is seeded from the first persisted value before the board is dealt, so a Zen run can no
+  longer start with finite hints or a shuffle countdown.
+* New virtual-time test suite covers preview/timer, time and move losses, idle-only shuffle,
+  auto-hide, hint limits/cooldown, boss hints, Zen, pause/resume, victory once, replay coins and
+  restore/expiry/malformed snapshots.
+
+### Audio and layout hardening
+* Unplugging headphones sends `ACTION_AUDIO_BECOMING_NOISY`; music fades out instead of blasting
+  from the speaker and resumes on the next foreground/screen entry.
+* Emoji the device font cannot draw are filtered once at startup. Deck building falls back to the
+  raw catalogue only when the supported pool is too small, so no level deals a broken board.
+* Card glyphs are capped against the card width, so 200% font scale no longer overflows six-column
+  cards. The HUD wraps instead of clipping, and the top bar ellipsises long world names.
+* Verified layouts at 360×640 dp with 200% font and at 640×360 dp landscape, plus Back → pause →
+  Back → resume.
+
+### Rewards, shop and migration tests
+* First clear still pays 15 + 5 per star; replays pay nothing and can never downgrade stars, best
+  moves or best time. A 0-star result is not treated as a clear.
+* Buying an already-owned theme is idempotent: it succeeds without charging again.
+* Legacy `sound_enabled` migration is covered (muted stays muted), and reset preserves master,
+  music and effects volumes, haptics and theme mode. Purchased themes are wiped with the rest of the
+  progress, so the selected theme returns to the free default rather than staying selected but
+  unowned.
+
+### Debug signing hygiene
+* `debug.keystore` is no longer tracked. Existing checkouts keep updating in place with their local
+  key; a fresh clone falls back to AGP's standard `~/.android/debug.keystore`.
+
+---
 
 ## Phase 1 – audio (towards v2.2)
 
@@ -74,7 +290,7 @@
 
 ---
 
-# Memoji v2.0 – what changed
+# v2.0 – what changed
 
 ## Harder as you climb (`LevelCatalog`, `GameViewModel`, `MemoryGameEngine`)
 | Mechanic | Early (1-20) | Mid (100-300) | Late (600-1000) |

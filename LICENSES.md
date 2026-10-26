@@ -1,12 +1,12 @@
 # Audio licences and sources
 
-Memoji ships **no third-party audio files**. Every sound effect and every music loop is original,
+Emogy ships **no third-party audio files**. Every sound effect and every music loop is original,
 procedurally synthesised on the device from mathematical oscillators and deterministic noise. There
 are no recordings, no sample packs, no OGG/MP3 assets in `res/raw`, and nothing is downloaded.
 
 ## Sound effects
 
-Rendered once into the app cache as 16-bit PCM WAV by `app/src/main/java/com/vurka/memoji/util/SoundManager.kt`
+Rendered once into the app cache as 16-bit PCM WAV by `app/src/main/java/com/vurka/emogy/util/SoundManager.kt`
 and played through `SoundPool` with `USAGE_GAME`.
 
 | Cue | Source file | Character |
@@ -32,7 +32,7 @@ and played through `SoundPool` with `USAGE_GAME`.
 ## Music
 
 Rendered once into the app cache as 64-second, 22.05 kHz mono WAV loops by
-`app/src/main/java/com/vurka/memoji/util/AmbientMusic.kt` and looped with `MediaPlayer`.
+`app/src/main/java/com/vurka/emogy/util/AmbientMusic.kt` and looped with `MediaPlayer`.
 
 | Family | Worlds | Mood |
 |---|---|---|

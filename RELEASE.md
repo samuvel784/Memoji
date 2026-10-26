@@ -1,4 +1,4 @@
-# Releasing Memoji
+# Releasing Emogy
 
 This is the short, accurate path from a clean checkout to a Play Store upload. It replaces the
 older instructions that told you release builds fall back to the debug keystore: they do not.
@@ -26,7 +26,7 @@ Set these in the shell that runs Gradle (never commit them):
 | `KEY_ALIAS` | no | Defaults to `upload`. |
 
 ```powershell
-$env:KEYSTORE_PATH = "K:\keys\memoji-upload.jks"
+$env:KEYSTORE_PATH = "K:\keys\emogy-upload.jks"
 $env:STORE_PASSWORD = "..."
 $env:KEY_PASSWORD   = "..."
 ```
@@ -59,17 +59,26 @@ jarsigner -verify -verbose -certs app\build\outputs\bundle\release\app-release.a
 
 ## 5. Release blockers (must be resolved by a human)
 
-1. **Privacy contact.** `PRIVACY_POLICY.md` still contains `<your-email@example.com>`. Replace it
-   with a monitored address and host the page at a public URL before publishing. Play requires a
-   working privacy policy URL and may use it to contact you.
+Nothing in the code blocks a release. The remaining work is account, signing, asset and device work.
+
+1. **Privacy contact and URL.** `PRIVACY_POLICY.md` contains `<REPLACE_WITH_MONITORED_SUPPORT_EMAIL>`.
+   Replace it with a monitored address before release, host the page at a public HTTPS URL and paste that URL into
+   Play Console. Play requires a working privacy policy URL and may use it to contact you.
 2. **Upload key.** If `my-upload-key.jks` does not exist and the environment variables above are
    not set, there is no release artifact to upload. This is intentional.
 3. **Store assets.** A 512×512 icon, a 1024×500 feature graphic and at least two phone screenshots
-   are still needed in the Play Console listing.
-4. **Testing track.** New personal developer accounts must run closed testing before production.
+   (ideally 4–8) are still needed in the Play Console listing.
+4. **Real-device QA.** Install the signed build on a phone and check audio, haptics, TalkBack,
+   rotation, background/resume, a win, both loss types, a replay and “Remove animations”.
+5. **Play Console setup.** Create the app entry and complete the listing, Data safety, Ads,
+   Content rating and Target audience (General / 13+) sections; category Games > Puzzle.
+6. **Testing track.** New personal developer accounts must run closed testing with 12 testers for
+   14 days before production.
+7. **Name check.** Confirm that “Emogy” is available as a store name and does not conflict with
+   an existing trademark; this cannot be checked offline.
 
 ## 6. Versioning
 
 Bump `versionCode` and `versionName` in `app/build.gradle.kts` for every upload. `versionCode` must
-increase monotonically. The application ID `com.vurka.memoji` can never change after the first
+increase monotonically. The application ID `com.vurka.emogy` can never change after the first
 published release.

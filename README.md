@@ -1,4 +1,4 @@
-# Memoji – The Memory Game
+# Emogy – The Memory Game
 
 Offline emoji memory-matching game: **1,000 levels, 20 themed worlds, boss levels, a winding world
 map**. Every level is playable from the first launch, in any order; progress, stars and coins are
@@ -16,5 +16,5 @@ See `RELEASE.md` for signing, verification and the current release blockers, `PL
 for the Play Console answers, and `PRIVACY_POLICY.md` for the policy text. Release builds fail loudly
 if no upload key is configured; they never fall back to the debug keystore.
 
-## What changed
-See `CHANGES.md` (v2.1 covers this release pass).
+## What changed & Competitor Analysis
+See `CHANGES.md` (v2.1 covers this release pass) and `COMPETITOR_ANALYSIS.md` for the market feature-gap matrix.

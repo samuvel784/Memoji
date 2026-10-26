@@ -16,8 +16,10 @@ captures/
 # Tooling
 .aistudio/
 
-# Signing (upload keys must never be committed)
+# Signing (keys must never be committed)
 *.jks
+*.keystore
+debug.keystore
 my-upload-key.jks
 .env
 

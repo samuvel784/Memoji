@@ -1,4 +1,20 @@
-# Google Play checklist for Memoji
+# Google Play checklist for Emogy
+
+## 0. Remaining launch blockers at a glance
+
+Nothing in the code blocks a release: the app builds, tests pass and lint has no errors. What is
+still missing is account, signing, asset and device work that only a human can supply.
+
+| # | Item | Status / what to do |
+|---|---|---|
+| 1 | **Privacy contact email** | `PRIVACY_POLICY.md` has `<REPLACE_WITH_MONITORED_SUPPORT_EMAIL>`. Replace it with a monitored address before release. |
+| 2 | **Public privacy policy URL** | Host `PRIVACY_POLICY.md` (GitHub Pages, a website, or Google Sites) and paste the HTTPS link into Play Console. The URL must be publicly reachable without login. |
+| 3 | **Upload key** | Create `my-upload-key.jks`, set `STORE_PASSWORD` and `KEY_PASSWORD`, then build a signed `app-release.aab`. See `RELEASE.md`. |
+| 4 | **Store graphics** | 512×512 icon, 1024×500 feature graphic, and at least 2 (ideally 4–8) phone screenshots. |
+| 5 | **Real-device QA** | No device/emulator is connected here. Test audio, TalkBack, rotation, background/resume, a win/loss/replay and “Remove animations” on a real phone. |
+| 6 | **Play Console setup** | Create the app, fill the listing, complete Data safety, Ads, Content rating and Target audience (General / 13+), and pick Games > Puzzle. |
+| 7 | **Closed testing** | New personal developer accounts must run closed testing with 12 testers for 14 days before production. |
+| 8 | **Name/trademark check** | Confirm “Emogy” is available as a store name and is not a conflicting trademark. This cannot be checked offline. |
 
 ## 1. Signing (important!)
 Release builds **never** fall back to `debug.keystore`. `packageRelease` / `bundleRelease` depend on
@@ -14,7 +30,7 @@ Set `STORE_PASSWORD` and `KEY_PASSWORD` (optionally `KEYSTORE_PATH`, `KEY_ALIAS`
 Keep the .jks and passwords backed up and **never commit them**. Enroll in Play App Signing when asked.
 
 ## 2. App facts
-* Package: `com.vurka.memoji` (cannot change after first publish).
+* Package: `com.vurka.emogy` (cannot change after first publish).
 * Version: `versionCode 3`, `versionName 2.1`.
 * targetSdk 37, minSdk 24, pure Kotlin/Compose -> meets current target-API and 64-bit rules.
 * Release has R8 + resource shrinking enabled.
@@ -29,8 +45,8 @@ Keep the .jks and passwords backed up and **never commit them**. Enroll in Play 
 * **Contains user-generated content:** No. **Account creation:** none.
 * **App access:** all functionality available without login.
 * **Content rating (IARC):** no violence/gambling/user interaction -> expect "Everyone / PEGI 3".
-* **Target audience:** if you include children under 13, you must also comply with Families Policy
-  (no ads/SDKs: you already comply).
+* **Target audience:** General / 13+. The listing should not target children under 13 and the app
+  should not be enrolled in the Families programme.
 * **Category:** Games > Puzzle (or Casual).
 * **Data deletion:** not applicable - there is no account and no server. Players can clear all local
   data with Settings > Reset progress or by clearing app storage.

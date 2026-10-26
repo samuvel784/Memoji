@@ -22,6 +22,6 @@ dependencyResolutionManagement {
   }
 }
 
-rootProject.name = "Memoji - The Memory Game"
+rootProject.name = "Emogy"
 
 include(":app")

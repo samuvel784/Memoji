@@ -6,12 +6,16 @@ plugins {
 // Release signing is opt-in: it comes from the environment (never from source control).
 val releaseKeystoreFile = file(System.getenv("KEYSTORE_PATH") ?: "${rootDir}/my-upload-key.jks")
 
+// The debug key is intentionally not tracked. Existing checkouts keep using their local file;
+// fresh clones fall back to Android Gradle Plugin's standard ~/.android/debug.keystore.
+val localDebugKeystore = file("${rootDir}/debug.keystore")
+
 android {
-  namespace = "com.vurka.memoji"
+  namespace = "com.vurka.emogy"
   compileSdk { version = release(37) }
 
   defaultConfig {
-    applicationId = "com.vurka.memoji"
+    applicationId = "com.vurka.emogy"
     minSdk = 24
     targetSdk = 37
     versionCode = 3
@@ -35,10 +39,12 @@ android {
       }
     }
     create("debugConfig") {
-      storeFile = file("${rootDir}/debug.keystore")
-      storePassword = "android"
-      keyAlias = "androiddebugkey"
-      keyPassword = "android"
+      if (localDebugKeystore.exists()) {
+        storeFile = localDebugKeystore
+        storePassword = "android"
+        keyAlias = "androiddebugkey"
+        keyPassword = "android"
+      }
     }
   }
 
@@ -53,9 +59,11 @@ android {
       signingConfig = signingConfigs.getByName("release")
     }
     debug {
-      // Do not remove or modify this signingConfig assignment. It is necessary for Android apps in
-      // AI Studio.
-      signingConfig = signingConfigs.getByName("debugConfig")
+      // Keep the local untracked debug key when present so existing installs can be updated in
+      // place. A fresh clone has no debug.keystore, so AGP's default debug signing is used.
+      if (localDebugKeystore.exists()) {
+        signingConfig = signingConfigs.getByName("debugConfig")
+      }
     }
   }
   compileOptions {
